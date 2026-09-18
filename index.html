@@ -14,7 +14,7 @@
         <p class="eyebrow">ARCADE // 01</p>
         <h1>NEON TETRIS</h1>
       </div>
-      <div class="top-actions"><button id="soundBtn" class="icon-btn" type="button" aria-label="사운드 켜기">🔇</button><button id="pauseBtn" class="icon-btn" type="button" aria-label="일시정지">Ⅱ</button></div>
+      <div class="top-actions"><div id="playerChip" class="player-chip" aria-label="현재 플레이어"><span>PLAYER</span><strong id="playerName">...</strong></div><button id="rankBtn" class="icon-btn" type="button" aria-label="로컬 랭킹 보기">🏆</button><button id="soundBtn" class="icon-btn" type="button" aria-label="사운드 켜기">🔇</button><button id="pauseBtn" class="icon-btn" type="button" aria-label="일시정지">Ⅱ</button></div>
     </header>
 
     <section class="game-shell">
@@ -40,6 +40,7 @@
       <div class="board-wrap">
         <canvas id="gameCanvas" width="300" height="600" aria-label="테트리스 게임판"></canvas>
         <div id="fxBanner" class="fx-banner" aria-hidden="true"></div>
+        <div id="dropStreakFx" class="drop-streak-fx" aria-live="polite"></div>
         <div id="overlay" class="overlay hidden" role="status" aria-live="polite">
           <div class="overlay-card">
             <p id="overlayKicker">PAUSED</p>
@@ -83,8 +84,31 @@
       <span>7-BAG RANDOMIZER</span>
       <span>GHOST PIECE ENABLED</span>
       <span>LOCAL BEST SCORE</span>
+      <span>LOCAL PLAYER RANKING</span>
     </footer>
   </main>
+
+  <div id="playerGate" class="modal-layer" role="dialog" aria-modal="true" aria-labelledby="playerGateTitle">
+    <div class="modal-card player-card">
+      <p class="modal-kicker">PLAYER IDENTIFICATION</p>
+      <h2 id="playerGateTitle">닉네임을 입력하세요</h2>
+      <p class="modal-copy">이 기기의 로컬 랭킹에 기록됩니다.</p>
+      <form id="nicknameForm">
+        <input id="nicknameInput" type="text" maxlength="12" autocomplete="nickname" placeholder="NICKNAME" aria-label="닉네임" required />
+        <button id="startGameBtn" type="submit">START GAME</button>
+      </form>
+      <p id="nicknameError" class="field-error" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <div id="rankModal" class="modal-layer hidden" role="dialog" aria-modal="true" aria-labelledby="rankTitle">
+    <div class="modal-card rank-card">
+      <div class="rank-heading"><div><p class="modal-kicker">LOCAL SCOREBOARD</p><h2 id="rankTitle">RANKING</h2></div><button id="closeRankBtn" class="icon-btn" type="button" aria-label="랭킹 닫기">✕</button></div>
+      <ol id="rankList" class="rank-list"></ol>
+      <p class="modal-copy">현재는 이 기기에 저장되는 로컬 랭킹입니다.</p>
+    </div>
+  </div>
+
   <script src="/app.js" defer></script>
 </body>
 </html>
