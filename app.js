@@ -45,6 +45,16 @@
   const restartBtn = document.getElementById("restartBtn");
   const boardWrap = canvas.closest(".board-wrap");
   const fxBanner = document.getElementById("fxBanner");
+  const dropStreakFx = document.getElementById("dropStreakFx");
+  const playerNameEl = document.getElementById("playerName");
+  const playerGate = document.getElementById("playerGate");
+  const nicknameForm = document.getElementById("nicknameForm");
+  const nicknameInput = document.getElementById("nicknameInput");
+  const nicknameError = document.getElementById("nicknameError");
+  const rankBtn = document.getElementById("rankBtn");
+  const rankModal = document.getElementById("rankModal");
+  const rankList = document.getElementById("rankList");
+  const closeRankBtn = document.getElementById("closeRankBtn");
 
   let board;
   let current;
@@ -65,6 +75,11 @@
   let shockwaves = [];
   let flash = 0;
   let fxTimer = null;
+  let dropStreak = 0;
+  let dropStreakTimer = null;
+  let playerName = "";
+  let playerReady = false;
+  let rankWasPaused = false;
 
   let audioCtx = null;
   let masterGain = null;
@@ -77,6 +92,132 @@
   let soundMuted = localStorage.getItem("neon-tetris-muted") === "1";
 
   bestEl.textContent = best.toLocaleString();
+
+  function normalizeNickname(value) {
+    return String(value || "").trim().replace(/\s+/g, " ").slice(0, 12);
+  }
+
+  function loadLeaderboard() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem("neon-tetris-ranking") || "[]");
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter(row => row && typeof row.name === "string" && Number.isFinite(Number(row.score)))
+        .map(row => ({ name: normalizeNickname(row.name), score: Math.max(0, Number(row.score) || 0), lines: Math.max(0, Number(row.lines) || 0), level: Math.max(1, Number(row.level) || 1) }))
+        .filter(row => row.name)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 20);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function renderLeaderboard() {
+    const rows = loadLeaderboard();
+    rankList.replaceChildren();
+    if (!rows.length) {
+      const li = document.createElement("li");
+      li.className = "empty-rank";
+      li.textContent = "아직 기록이 없습니다.";
+      rankList.appendChild(li);
+      return;
+    }
+    rows.slice(0, 10).forEach(row => {
+      const li = document.createElement("li");
+      const name = document.createElement("span");
+      const value = document.createElement("strong");
+      name.className = "rank-name";
+      value.className = "rank-score";
+      name.textContent = row.name;
+      value.textContent = row.score.toLocaleString();
+      li.append(name, value);
+      rankList.appendChild(li);
+    });
+  }
+
+  function recordRanking() {
+    if (!playerName) return;
+    const rows = loadLeaderboard();
+    const key = playerName.toLocaleLowerCase();
+    const existing = rows.find(row => row.name.toLocaleLowerCase() === key);
+    if (existing) {
+      if (score > existing.score) {
+        existing.score = score;
+        existing.lines = lines;
+        existing.level = level;
+      }
+    } else {
+      rows.push({ name: playerName, score, lines, level });
+    }
+    rows.sort((a, b) => b.score - a.score);
+    localStorage.setItem("neon-tetris-ranking", JSON.stringify(rows.slice(0, 20)));
+    renderLeaderboard();
+  }
+
+  function showPlayerGate() {
+    paused = true;
+    playerGate.classList.remove("hidden");
+    nicknameInput.value = localStorage.getItem("neon-tetris-last-player") || "";
+    nicknameError.textContent = "";
+    window.setTimeout(() => nicknameInput.focus(), 40);
+  }
+
+  function startWithNickname() {
+    const value = normalizeNickname(nicknameInput.value);
+    if (!value) {
+      nicknameError.textContent = "닉네임을 입력하세요.";
+      nicknameInput.focus();
+      return false;
+    }
+    playerName = value;
+    playerReady = true;
+    playerNameEl.textContent = value;
+    localStorage.setItem("neon-tetris-last-player", value);
+    playerGate.classList.add("hidden");
+    paused = false;
+    setMusicLevel(.24);
+    lastTime = performance.now();
+    resetDropStreak();
+    return true;
+  }
+
+  function showRankModal() {
+    renderLeaderboard();
+    rankWasPaused = paused;
+    if (!gameOver) {
+      paused = true;
+      setMusicLevel(.055);
+    }
+    rankModal.classList.remove("hidden");
+  }
+
+  function hideRankModal() {
+    rankModal.classList.add("hidden");
+    if (!gameOver && playerReady && !rankWasPaused) {
+      paused = false;
+      setMusicLevel(.24);
+      lastTime = performance.now();
+    }
+  }
+
+  function resetDropStreak() {
+    dropStreak = 0;
+    clearTimeout(dropStreakTimer);
+    dropStreakFx.classList.remove("active");
+  }
+
+  function registerHardDrop() {
+    dropStreak += 1;
+    const tier = Math.min(4, Math.max(1, Math.ceil(dropStreak / 3)));
+    dropStreakFx.textContent = `DROP ×${dropStreak}`;
+    dropStreakFx.dataset.tier = String(tier);
+    dropStreakFx.classList.remove("active");
+    void dropStreakFx.offsetWidth;
+    dropStreakFx.classList.add("active");
+    clearTimeout(dropStreakTimer);
+    dropStreakTimer = window.setTimeout(() => dropStreakFx.classList.remove("active"), 760);
+    return dropStreak;
+  }
 
   async function ensureAudio(playConfirmation = false) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -428,12 +569,13 @@
       }
       return true;
     }
-    lockPiece();
+    lockPiece(0);
     return false;
   }
 
   function hardDrop() {
     if (paused || gameOver) return;
+    const chain = registerHardDrop();
     let distance = 0;
     while (!collides(current, 0, 1)) {
       current.y++;
@@ -441,7 +583,7 @@
     }
     score += distance * 2;
     sfxHardDrop();
-    lockPiece();
+    lockPiece(chain);
   }
 
   function retriggerClass(name, ms) {
@@ -451,17 +593,21 @@
     window.setTimeout(() => boardWrap.classList.remove(name), ms);
   }
 
-  function screenBump() {
+  function screenBump(strength = 1) {
     const app = document.querySelector(".app");
+    const power = Math.max(1, strength);
+    const amp = Math.min(24, 4 + power * 2.15);
+    const duration = Math.min(360, 160 + power * 20);
     app.getAnimations().forEach(anim => {
       if (anim.effect && anim.effect.target === app) anim.cancel();
     });
     app.animate([
       { transform: "translate3d(0,0,0) scale(1)" },
-      { transform: "translate3d(0,5px,0) scale(1.004,.997)", offset: .22 },
-      { transform: "translate3d(0,-2px,0) scale(.999,1.002)", offset: .55 },
+      { transform: `translate3d(0,${amp}px,0) scale(${1 + Math.min(.018, power * .0018)},${1 - Math.min(.016, power * .0016)})`, offset: .18 },
+      { transform: `translate3d(${-amp * .48}px,${-amp * .34}px,0) rotate(${-Math.min(1.1, power * .09)}deg)`, offset: .4 },
+      { transform: `translate3d(${amp * .34}px,${amp * .12}px,0) rotate(${Math.min(.8, power * .065)}deg)`, offset: .62 },
       { transform: "translate3d(0,0,0) scale(1)" }
-    ], { duration: 180, easing: "cubic-bezier(.2,.82,.3,1)" });
+    ], { duration, easing: "cubic-bezier(.2,.82,.3,1)" });
   }
 
   function speakClear(count) {
@@ -662,11 +808,11 @@
     impact(1.55 + capped * .7);
   }
 
-  function lockPiece() {
+  function lockPiece(dropPower = 0) {
     merge();
     sfxLand();
-    screenBump();
-    impact(.65);
+    screenBump(dropPower || 1);
+    impact(dropPower ? .65 + Math.min(3.2, dropPower * .32) : .65);
     clearLines();
     current = next;
     next = makePiece();
@@ -922,7 +1068,8 @@
     setMusicLevel(.035);
     sfxGameOver();
     updateHUD();
-    showOverlay("GAME OVER", score.toLocaleString() + "점", "다시 시작");
+    recordRanking();
+    showOverlay("GAME OVER // " + (playerName || "PLAYER"), score.toLocaleString() + "점", "다시 시작");
   }
 
   function resetGame() {
@@ -943,16 +1090,21 @@
     shockwaves = [];
     flash = 0;
     clearTimeout(fxTimer);
+    clearTimeout(dropStreakTimer);
+    dropStreak = 0;
     fxBanner.classList.remove("active");
+    dropStreakFx.classList.remove("active");
     boardWrap.classList.remove("slam", "mega-slam", "line-burst");
     setMusicLevel(.24);
     pauseBtn.textContent = "Ⅱ";
     hideOverlay();
     updateHUD();
     drawBoard(16);
+    if (!playerReady) showPlayerGate();
   }
 
   function perform(action) {
+    if (!["left", "right", "rotate", "drop"].includes(action)) resetDropStreak();
     switch (action) {
       case "left": move(-1); break;
       case "right": move(1); break;
@@ -964,11 +1116,13 @@
   }
 
   const handledKeys = new Set(["ArrowLeft","ArrowRight","ArrowDown","ArrowUp","Space","KeyX","KeyZ","KeyC","KeyP","Escape","KeyR"]);
+  const streakSafeKeys = new Set(["ArrowLeft","ArrowRight","ArrowUp","Space","KeyX","KeyZ"]);
   window.addEventListener("pointerdown", () => { ensureAudio(false); }, { capture: true, once: true });
   window.addEventListener("keydown", () => { ensureAudio(false); }, { capture: true, once: true });
   window.addEventListener("keydown", (e) => {
     ensureAudio();
     if (handledKeys.has(e.code)) e.preventDefault();
+    if (handledKeys.has(e.code) && !streakSafeKeys.has(e.code)) resetDropStreak();
     if (e.repeat && ["Space","KeyC","KeyP","Escape","KeyR"].includes(e.code)) return;
     switch (e.code) {
       case "ArrowLeft": move(-1); break;
@@ -1012,6 +1166,7 @@
   soundBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     e.stopPropagation();
+    resetDropStreak();
 
     if (!audioCtx || audioCtx.state !== "running") {
       soundMuted = false;
@@ -1029,9 +1184,32 @@
       tone(990, .09, "triangle", .035, t + .05, 1180);
     }
   });
-  pauseBtn.addEventListener("click", () => togglePause());
-  restartBtn.addEventListener("click", resetGame);
-  overlayBtn.addEventListener("click", () => gameOver ? resetGame() : togglePause(false));
+  pauseBtn.addEventListener("click", () => {
+    resetDropStreak();
+    togglePause();
+  });
+  restartBtn.addEventListener("click", () => {
+    resetDropStreak();
+    resetGame();
+  });
+  overlayBtn.addEventListener("click", () => {
+    resetDropStreak();
+    if (gameOver) resetGame();
+    else togglePause(false);
+  });
+  rankBtn.addEventListener("click", () => {
+    resetDropStreak();
+    showRankModal();
+  });
+  closeRankBtn.addEventListener("click", hideRankModal);
+  rankModal.addEventListener("click", (e) => {
+    if (e.target === rankModal) hideRankModal();
+  });
+  nicknameForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    ensureAudio(false);
+    startWithNickname();
+  });
 
   document.addEventListener("visibilitychange", () => {
     if (document.hidden && !gameOver) togglePause(true);

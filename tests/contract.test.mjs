@@ -83,3 +83,23 @@ test("sound control stays a persistent toggle", () => {
   assert.match(js, /const nextMuted = !soundMuted/);
   assert.match(js, /localStorage\.setItem\(["']neon-tetris-muted["']/);
 });
+
+
+test("nickname gate and local ranking remain", () => {
+  for (const id of ["playerGate","nicknameInput","startGameBtn","rankBtn","rankModal","rankList","playerName"]) {
+    assert.match(html, new RegExp(`id=["']${id}["']`), `missing #${id}`);
+  }
+  assert.match(js, /neon-tetris-ranking/);
+  assert.match(js, /neon-tetris-last-player/);
+  assert.match(js, /function\s+recordRanking\b/);
+  assert.match(js, /function\s+startWithNickname\b/);
+});
+
+test("hard drop streak escalation remains", () => {
+  assert.match(html, /id=["']dropStreakFx["']/);
+  assert.match(js, /let\s+dropStreak\s*=\s*0/);
+  assert.match(js, /function\s+registerHardDrop\b/);
+  assert.match(js, /DROP ×/);
+  assert.match(js, /streakSafeKeys/);
+  assert.match(js, /screenBump\(dropPower \|\| 1\)/);
+});
