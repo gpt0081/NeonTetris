@@ -1,0 +1,42 @@
+name: Regression Guard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install test dependencies
+        run: npm install
+
+      - name: Contract tests
+        run: npm test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser smoke test
+        run: npm run test:browser
+
+      - name: Upload current UI screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: neon-tetris-ui-snapshot
+          path: test-results/mobile-current.png
+          if-no-files-found: ignore
