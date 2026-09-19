@@ -66,6 +66,7 @@ test("mobile game shell keeps protected controls, FEVER and ghost rival without 
   await page.waitForTimeout(2100);
   await expect(page.locator("#ghostRivalScore")).not.toHaveText("0");
   await expect(page.locator("#rivalLineFx")).toContainText("LINE CLEAR!");
+  await expect(page.locator("#rivalComboFx")).toContainText("COMBO ×5");
 
   await page.locator("#rankBtn").click();
   await expect(page.locator("#rankModal")).toBeVisible();
