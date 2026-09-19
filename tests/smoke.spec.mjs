@@ -62,18 +62,19 @@ test("mobile game shell keeps protected controls, FEVER and ghost rival without 
   await page.locator("#menuSettingsBtn").click();
   await expect(page.locator("#quickMenuModal")).toBeHidden();
   await expect(page.locator("#settingsModal")).toBeVisible();
-  await page.locator("#bgmVolumeDial").fill("35");
-  await expect(page.locator("#bgmVolumeValue")).toHaveText("35%");
-  await page.locator("#sfxVolumeDial").fill("45");
-  await expect(page.locator("#sfxVolumeValue")).toHaveText("45%");
-  await page.locator("#lineVolumeDial").fill("55");
-  await expect(page.locator("#lineVolumeValue")).toHaveText("55%");
+  await page.locator("#bgmVolumeDial").fill("250");
+  await expect(page.locator("#bgmVolumeValue")).toHaveText("250%");
+  await page.locator("#sfxVolumeDial").fill("180");
+  await expect(page.locator("#sfxVolumeValue")).toHaveText("180%");
+  await page.locator("#lineVolumeDial").fill("300");
+  await expect(page.locator("#lineVolumeValue")).toHaveText("300%");
   await page.locator("#testBgmBtn").click();
   await page.locator("#testSfxBtn").click();
   await page.locator("#testLineBtn").click();
   await page.locator("#closeSettingsBtn").click();
   await expect(page.locator("#settingsModal")).toBeHidden();
-  await expect.poll(() => page.evaluate(() => localStorage.getItem("neon-tetris-bgm-volume"))).toBe("0.35");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("neon-tetris-bgm-volume"))).toBe("2.5");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("neon-tetris-line-volume"))).toBe("3");
 
   await page.keyboard.press("Space");
   await expect(page.locator("#dropStreakFx")).toContainText("DROP ×1");
