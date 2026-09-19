@@ -62,6 +62,15 @@
   const feverMultiplierEl = document.getElementById("feverMultiplier");
   const feverNextEl = document.getElementById("feverNext");
   const appEl = document.querySelector(".app");
+  const rivalSelect = document.getElementById("rivalSelect");
+  const rivalPanel = document.getElementById("rivalPanel");
+  const rivalNameEl = document.getElementById("rivalName");
+  const rivalDeltaEl = document.getElementById("rivalDelta");
+  const myRivalBar = document.getElementById("myRivalBar");
+  const ghostRivalBar = document.getElementById("ghostRivalBar");
+  const myRivalScore = document.getElementById("myRivalScore");
+  const ghostRivalScore = document.getElementById("ghostRivalScore");
+  const rivalStats = document.getElementById("rivalStats");
 
   let board;
   let current;
@@ -91,6 +100,13 @@
   let feverMultiplier = 1;
   let maxDropStreak = 0;
   let maxFeverTier = 0;
+  let replayTimeline = [];
+  let replayClock = 0;
+  let replaySampleAccumulator = 0;
+  let selectedRival = null;
+  let rivalLastFever = 0;
+  let rivalLastScoreMilestone = 0;
+  const MAX_REPLAY_SECONDS = 600;
   const FEVER_LEVELS = [
     { min: 0,  label: "COOL",      multiplier: 1,   bpm: 118, speed: 1 },
     { min: 5,  label: "HEAT",      multiplier: 1.2, bpm: 126, speed: .94 },
@@ -115,13 +131,25 @@
     return String(value || "").trim().replace(/\s+/g, " ").slice(0, 12);
   }
 
+  function sanitizeReplay(value) {
+    if (!Array.isArray(value)) return [];
+    return value.slice(0, MAX_REPLAY_SECONDS + 1).map((snap, index) => ({
+      t: Math.max(0, Math.min(MAX_REPLAY_SECONDS, Number(snap?.t) || index)),
+      score: Math.max(0, Number(snap?.score) || 0),
+      lines: Math.max(0, Number(snap?.lines) || 0),
+      level: Math.max(1, Number(snap?.level) || 1),
+      fever: Math.max(0, Math.min(4, Number(snap?.fever) || 0)),
+      streak: Math.max(0, Number(snap?.streak) || 0)
+    })).sort((a, b) => a.t - b.t);
+  }
+
   function loadLeaderboard() {
     try {
       const parsed = JSON.parse(localStorage.getItem("neon-tetris-ranking") || "[]");
       if (!Array.isArray(parsed)) return [];
       return parsed
         .filter(row => row && typeof row.name === "string" && Number.isFinite(Number(row.score)))
-        .map(row => ({ name: normalizeNickname(row.name), score: Math.max(0, Number(row.score) || 0), lines: Math.max(0, Number(row.lines) || 0), level: Math.max(1, Number(row.level) || 1), maxStreak: Math.max(0, Number(row.maxStreak) || 0), maxFeverTier: Math.max(0, Math.min(4, Number(row.maxFeverTier) || 0)) }))
+        .map(row => ({ name: normalizeNickname(row.name), score: Math.max(0, Number(row.score) || 0), lines: Math.max(0, Number(row.lines) || 0), level: Math.max(1, Number(row.level) || 1), maxStreak: Math.max(0, Number(row.maxStreak) || 0), maxFeverTier: Math.max(0, Math.min(4, Number(row.maxFeverTier) || 0)), replay: sanitizeReplay(row.replay), duration: Math.max(0, Number(row.duration) || 0) }))
         .filter(row => row.name)
         .sort((a, b) => b.score - a.score)
         .slice(0, 20);
@@ -147,10 +175,28 @@
       name.className = "rank-name";
       value.className = "rank-score";
       name.textContent = row.name;
-      value.textContent = row.score.toLocaleString() + ` · F${row.maxFeverTier} · ×${row.maxStreak}`;
+      value.textContent = row.score.toLocaleString() + ` · F${row.maxFeverTier} · ×${row.maxStreak}${row.replay.length ? " · 👻" : ""}`;
       li.append(name, value);
       rankList.appendChild(li);
     });
+  }
+
+  function renderRivalOptions() {
+    const rows = loadLeaderboard();
+    const previous = rivalSelect.value;
+    rivalSelect.replaceChildren();
+    const none = document.createElement("option");
+    none.value = "";
+    none.textContent = "NO RIVAL";
+    rivalSelect.appendChild(none);
+    rows.forEach((row, index) => {
+      if (row.replay.length < 2) return;
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = `${row.name} · ${row.score.toLocaleString()} PTS`;
+      rivalSelect.appendChild(option);
+    });
+    if ([...rivalSelect.options].some(option => option.value === previous)) rivalSelect.value = previous;
   }
 
   function recordRanking() {
@@ -163,15 +209,102 @@
         existing.score = score;
         existing.lines = lines;
         existing.level = level;
+        existing.replay = replayTimeline.slice(0, MAX_REPLAY_SECONDS + 1);
+        existing.duration = Math.round(replayClock);
       }
       existing.maxStreak = Math.max(existing.maxStreak || 0, maxDropStreak);
       existing.maxFeverTier = Math.max(existing.maxFeverTier || 0, maxFeverTier);
     } else {
-      rows.push({ name: playerName, score, lines, level, maxStreak: maxDropStreak, maxFeverTier });
+      rows.push({ name: playerName, score, lines, level, maxStreak: maxDropStreak, maxFeverTier, replay: replayTimeline.slice(0, MAX_REPLAY_SECONDS + 1), duration: Math.round(replayClock) });
     }
     rows.sort((a, b) => b.score - a.score);
     localStorage.setItem("neon-tetris-ranking", JSON.stringify(rows.slice(0, 20)));
     renderLeaderboard();
+    renderRivalOptions();
+  }
+
+  function snapshotState(t = Math.floor(replayClock / 1000)) {
+    return { t, score, lines, level, fever: feverTier, streak: dropStreak };
+  }
+
+  function beginReplayRun() {
+    replayClock = 0;
+    replaySampleAccumulator = 0;
+    replayTimeline = [snapshotState(0)];
+    rivalLastFever = 0;
+    rivalLastScoreMilestone = 0;
+    updateRivalHUD(false);
+  }
+
+  function captureReplaySnapshot(force = false) {
+    const second = Math.min(MAX_REPLAY_SECONDS, Math.floor(replayClock / 1000));
+    if (second > MAX_REPLAY_SECONDS) return;
+    const snap = snapshotState(second);
+    const last = replayTimeline[replayTimeline.length - 1];
+    if (last && last.t === second) replayTimeline[replayTimeline.length - 1] = snap;
+    else if (replayTimeline.length < MAX_REPLAY_SECONDS + 1) replayTimeline.push(snap);
+    if (force && second < MAX_REPLAY_SECONDS && (!last || last.t !== second)) replayTimeline.push(snap);
+    updateRivalHUD(true);
+  }
+
+  function getRivalSnapshot(seconds = Math.floor(replayClock / 1000)) {
+    if (!selectedRival || !selectedRival.replay.length) return null;
+    let chosen = selectedRival.replay[0];
+    for (const snap of selectedRival.replay) {
+      if (snap.t > seconds) break;
+      chosen = snap;
+    }
+    return chosen;
+  }
+
+  function flashRivalPressure(text, tier = 1) {
+    dropStreakFx.textContent = text;
+    dropStreakFx.dataset.tier = String(Math.max(1, Math.min(4, tier)));
+    dropStreakFx.classList.remove("active");
+    void dropStreakFx.offsetWidth;
+    dropStreakFx.classList.add("active");
+    clearTimeout(dropStreakTimer);
+    dropStreakTimer = window.setTimeout(() => dropStreakFx.classList.remove("active"), 760);
+    if (audioCtx && !soundMuted) {
+      const t = audioCtx.currentTime;
+      tone(240 + tier * 80, .08, "square", .025, t, 180 + tier * 70);
+    }
+  }
+
+  function updateRivalHUD(announce = false) {
+    if (!selectedRival) {
+      rivalPanel.classList.add("hidden");
+      return;
+    }
+    const rival = getRivalSnapshot();
+    if (!rival) return;
+    rivalPanel.classList.remove("hidden");
+    rivalNameEl.textContent = selectedRival.name;
+    const delta = score - rival.score;
+    rivalDeltaEl.classList.toggle("ahead", delta > 0);
+    rivalDeltaEl.classList.toggle("behind", delta < 0);
+    rivalDeltaEl.textContent = delta > 0 ? `+${delta.toLocaleString()} LEAD` : delta < 0 ? `-${Math.abs(delta).toLocaleString()} BEHIND` : "EVEN";
+    const target = Math.max(1, selectedRival.score, score);
+    myRivalBar.style.width = `${Math.min(100, score / target * 100)}%`;
+    ghostRivalBar.style.width = `${Math.min(100, rival.score / target * 100)}%`;
+    myRivalScore.textContent = score.toLocaleString();
+    ghostRivalScore.textContent = rival.score.toLocaleString();
+    rivalStats.textContent = `${rival.lines}L · F${rival.fever} · ×${rival.streak}`;
+
+    if (!announce) {
+      rivalLastFever = rival.fever;
+      rivalLastScoreMilestone = Math.floor(rival.score / 5000);
+      return;
+    }
+    if (rival.fever > rivalLastFever) {
+      rivalLastFever = rival.fever;
+      flashRivalPressure(`RIVAL ${FEVER_LEVELS[rival.fever]?.label || "FEVER"}!`, rival.fever);
+    }
+    const milestone = Math.floor(rival.score / 5000);
+    if (milestone > rivalLastScoreMilestone && milestone > 0) {
+      rivalLastScoreMilestone = milestone;
+      flashRivalPressure(`RIVAL ${milestone * 5}K!`, Math.max(1, rival.fever));
+    }
   }
 
   function showPlayerGate() {
@@ -179,6 +312,7 @@
     playerGate.classList.remove("hidden");
     nicknameInput.value = localStorage.getItem("neon-tetris-last-player") || "";
     nicknameError.textContent = "";
+    renderRivalOptions();
     window.setTimeout(() => nicknameInput.focus(), 40);
   }
 
@@ -192,12 +326,16 @@
     playerName = value;
     playerReady = true;
     playerNameEl.textContent = value;
+    const rivals = loadLeaderboard();
+    const rivalIndex = rivalSelect.value === "" ? -1 : Number(rivalSelect.value);
+    selectedRival = Number.isInteger(rivalIndex) && rivalIndex >= 0 && rivals[rivalIndex]?.replay?.length >= 2 ? rivals[rivalIndex] : null;
     localStorage.setItem("neon-tetris-last-player", value);
     playerGate.classList.add("hidden");
     paused = false;
     setMusicLevel(.24);
     lastTime = performance.now();
     resetDropStreak();
+    beginReplayRun();
     return true;
   }
 
@@ -1143,6 +1281,12 @@
     const delta = Math.min(50, time - lastTime || 0);
     lastTime = time;
     if (!paused && !gameOver) {
+      replayClock += delta;
+      replaySampleAccumulator += delta;
+      if (replaySampleAccumulator >= 1000) {
+        replaySampleAccumulator %= 1000;
+        captureReplaySnapshot(false);
+      }
       dropAccumulator += delta;
       if (dropAccumulator >= dropInterval()) {
         softDrop(false);
@@ -1181,8 +1325,11 @@
     setMusicLevel(.035);
     sfxGameOver();
     updateHUD();
+    captureReplaySnapshot(true);
+    const rivalResult = selectedRival ? (score > selectedRival.score ? "RIVAL DOWN" : score < selectedRival.score ? "RIVAL WINS" : "DRAW") : "GAME OVER";
+    const rivalSuffix = selectedRival ? " // " + selectedRival.name : " // " + (playerName || "PLAYER");
     recordRanking();
-    showOverlay("GAME OVER // " + (playerName || "PLAYER"), score.toLocaleString() + "점", "다시 시작");
+    showOverlay(rivalResult + rivalSuffix, score.toLocaleString() + "점", "다시 시작");
   }
 
   function resetGame() {
@@ -1209,6 +1356,11 @@
     feverMultiplier = 1;
     maxDropStreak = 0;
     maxFeverTier = 0;
+    replayClock = 0;
+    replaySampleAccumulator = 0;
+    replayTimeline = [];
+    rivalLastFever = 0;
+    rivalLastScoreMilestone = 0;
     fxBanner.classList.remove("active");
     dropStreakFx.classList.remove("active");
     boardWrap.classList.remove("slam", "mega-slam", "line-burst");
@@ -1218,7 +1370,12 @@
     hideOverlay();
     updateHUD();
     drawBoard(16);
-    if (!playerReady) showPlayerGate();
+    if (!playerReady) {
+      rivalPanel.classList.add("hidden");
+      showPlayerGate();
+    } else {
+      beginReplayRun();
+    }
   }
 
   function perform(action) {
