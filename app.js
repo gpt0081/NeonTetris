@@ -42,6 +42,19 @@
   const overlayBtn = document.getElementById("overlayBtn");
   const pauseBtn = document.getElementById("pauseBtn");
   const soundBtn = document.getElementById("soundBtn");
+  const settingsBtn = document.getElementById("settingsBtn");
+  const settingsModal = document.getElementById("settingsModal");
+  const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+  const soundEnabledToggle = document.getElementById("soundEnabledToggle");
+  const bgmVolumeDial = document.getElementById("bgmVolumeDial");
+  const sfxVolumeDial = document.getElementById("sfxVolumeDial");
+  const lineVolumeDial = document.getElementById("lineVolumeDial");
+  const bgmVolumeValue = document.getElementById("bgmVolumeValue");
+  const sfxVolumeValue = document.getElementById("sfxVolumeValue");
+  const lineVolumeValue = document.getElementById("lineVolumeValue");
+  const testBgmBtn = document.getElementById("testBgmBtn");
+  const testSfxBtn = document.getElementById("testSfxBtn");
+  const testLineBtn = document.getElementById("testLineBtn");
   const restartBtn = document.getElementById("restartBtn");
   const boardWrap = canvas.closest(".board-wrap");
   const fxBanner = document.getElementById("fxBanner");
@@ -103,6 +116,7 @@
   let playerName = "";
   let playerReady = false;
   let rankWasPaused = false;
+  let settingsWasPaused = false;
   let feverTier = 0;
   let feverMultiplier = 1;
   let maxDropStreak = 0;
@@ -130,13 +144,36 @@
   let masterGain = null;
   let musicGain = null;
   let sfxGain = null;
+  let lineClearGain = null;
   let noiseBuffer = null;
   let musicTimer = null;
   let musicStep = 0;
   let nextMusicTime = 0;
   let soundMuted = localStorage.getItem("neon-tetris-muted") === "1";
+  let musicBaseLevel = .24;
+  const readAudioLevel = (key, fallback = 1) => {
+    const value = Number(localStorage.getItem(key));
+    return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
+  };
+  let bgmVolume = readAudioLevel("neon-tetris-bgm-volume", 1);
+  let sfxVolume = readAudioLevel("neon-tetris-sfx-volume", 1);
+  let lineVolume = readAudioLevel("neon-tetris-line-volume", 1);
 
   bestEl.textContent = best.toLocaleString();
+
+  function setDialVisual(input, output, value) {
+    const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
+    input.value = String(pct);
+    input.style.setProperty("--dial", `${pct * .75}%`);
+    output.textContent = `${pct}%`;
+  }
+
+  function syncAudioSettingsUI() {
+    soundEnabledToggle.checked = !soundMuted;
+    setDialVisual(bgmVolumeDial, bgmVolumeValue, bgmVolume);
+    setDialVisual(sfxVolumeDial, sfxVolumeValue, sfxVolume);
+    setDialVisual(lineVolumeDial, lineVolumeValue, lineVolume);
+  }
 
   function normalizeNickname(value) {
     return String(value || "").trim().replace(/\s+/g, " ").slice(0, 12);
@@ -492,6 +529,25 @@
     return true;
   }
 
+  function showSettingsModal() {
+    settingsWasPaused = paused;
+    if (!gameOver) {
+      paused = true;
+      setMusicLevel(.055);
+    }
+    syncAudioSettingsUI();
+    settingsModal.classList.remove("hidden");
+  }
+
+  function hideSettingsModal() {
+    settingsModal.classList.add("hidden");
+    if (!gameOver && playerReady && !settingsWasPaused) {
+      paused = false;
+      setMusicLevel(.24);
+      lastTime = performance.now();
+    }
+  }
+
   function showRankModal() {
     renderLeaderboard();
     rankWasPaused = paused;
@@ -635,6 +691,7 @@
       masterGain = audioCtx.createGain();
       musicGain = audioCtx.createGain();
       sfxGain = audioCtx.createGain();
+      lineClearGain = audioCtx.createGain();
       const compressor = audioCtx.createDynamicsCompressor();
       compressor.threshold.value = -16;
       compressor.knee.value = 18;
@@ -642,10 +699,12 @@
       compressor.attack.value = .004;
       compressor.release.value = .18;
       masterGain.gain.value = .72;
-      musicGain.gain.value = .24;
-      sfxGain.gain.value = .62;
+      musicGain.gain.value = musicBaseLevel * bgmVolume;
+      sfxGain.gain.value = .62 * sfxVolume;
+      lineClearGain.gain.value = .72 * lineVolume;
       musicGain.connect(masterGain);
       sfxGain.connect(masterGain);
+      lineClearGain.connect(masterGain);
       masterGain.connect(compressor);
       compressor.connect(audioCtx.destination);
 
@@ -693,10 +752,44 @@
   }
 
   function setMusicLevel(value, ramp = .18) {
+    musicBaseLevel = value;
     if (!audioCtx || !musicGain) return;
     const now = audioCtx.currentTime;
     musicGain.gain.cancelScheduledValues(now);
-    musicGain.gain.setTargetAtTime(value, now, ramp);
+    musicGain.gain.setTargetAtTime(value * bgmVolume, now, ramp);
+  }
+
+  function applyAudioMix() {
+    syncAudioSettingsUI();
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    if (musicGain) {
+      musicGain.gain.cancelScheduledValues(now);
+      musicGain.gain.setTargetAtTime(musicBaseLevel * bgmVolume, now, .035);
+    }
+    if (sfxGain) {
+      sfxGain.gain.cancelScheduledValues(now);
+      sfxGain.gain.setTargetAtTime(.62 * sfxVolume, now, .035);
+    }
+    if (lineClearGain) {
+      lineClearGain.gain.cancelScheduledValues(now);
+      lineClearGain.gain.setTargetAtTime(.72 * lineVolume, now, .035);
+    }
+  }
+
+  function saveAudioLevel(kind, value) {
+    const normalized = Math.max(0, Math.min(1, Number(value) || 0));
+    if (kind === "bgm") {
+      bgmVolume = normalized;
+      localStorage.setItem("neon-tetris-bgm-volume", String(normalized));
+    } else if (kind === "sfx") {
+      sfxVolume = normalized;
+      localStorage.setItem("neon-tetris-sfx-volume", String(normalized));
+    } else {
+      lineVolume = normalized;
+      localStorage.setItem("neon-tetris-line-volume", String(normalized));
+    }
+    applyAudioMix();
   }
 
   function setMuted(value) {
@@ -711,6 +804,7 @@
       soundBtn.textContent = value ? "🔇" : "🔊";
       soundBtn.setAttribute("aria-label", value ? "사운드 꺼짐, 탭해서 켜기" : "사운드 켜짐, 탭해서 끄기");
     }
+    if (soundEnabledToggle) soundEnabledToggle.checked = !value;
   }
 
   function tone(freq, duration, type = "sine", volume = .08, when = null, endFreq = null, target = null) {
@@ -730,7 +824,7 @@
     osc.stop(t + duration + .03);
   }
 
-  function noise(duration = .08, volume = .06, cutoff = 1800, when = null) {
+  function noise(duration = .08, volume = .06, cutoff = 1800, when = null, target = null) {
     if (!audioCtx || !noiseBuffer) return;
     const t = when ?? audioCtx.currentTime;
     const src = audioCtx.createBufferSource();
@@ -743,7 +837,7 @@
     gain.gain.exponentialRampToValueAtTime(.0001, t + duration);
     src.connect(filter);
     filter.connect(gain);
-    gain.connect(sfxGain);
+    gain.connect(target || sfxGain);
     src.start(t);
     src.stop(t + duration + .02);
   }
@@ -788,9 +882,9 @@
     const root = roots[tier];
     const t = audioCtx.currentTime;
     const notes = tier === 1 ? [1, 1.25, 1.5] : tier === 2 ? [1, 1.25, 1.5, 2] : tier === 3 ? [1, 1.2, 1.5, 1.8, 2.25] : [1, 1.25, 1.5, 2, 2.5, 3];
-    notes.forEach((ratio, i) => tone(root * ratio, .16 + tier * .025, i % 2 ? "triangle" : "square", .035 + tier * .008, t + i * .035, root * ratio * 1.035));
-    tone(80 + tier * 12, .18, "sine", .085 + tier * .015, t, 42);
-    noise(.11 + tier * .02, .045 + tier * .012, 2600 + tier * 500, t);
+    notes.forEach((ratio, i) => tone(root * ratio, .16 + tier * .025, i % 2 ? "triangle" : "square", .035 + tier * .008, t + i * .035, root * ratio * 1.035, lineClearGain));
+    tone(80 + tier * 12, .18, "sine", .085 + tier * .015, t, 42, lineClearGain);
+    noise(.11 + tier * .02, .045 + tier * .012, 2600 + tier * 500, t, lineClearGain);
   }
 
   function sfxGameOver() {
@@ -1021,7 +1115,7 @@
     utterance.lang = "en-US";
     utterance.rate = lines >= 4 ? .9 : .96;
     utterance.pitch = lines >= 3 ? .78 : .88;
-    utterance.volume = .92;
+    utterance.volume = Math.max(0, Math.min(1, .92 * lineVolume));
     const voices = window.speechSynthesis.getVoices();
     const preferred = voices.find(v => /^en(-|_)/i.test(v.lang) && /Google|Samantha|Daniel|Microsoft/i.test(v.name))
       || voices.find(v => /^en(-|_)/i.test(v.lang));
@@ -1620,6 +1714,37 @@
     btn.addEventListener("pointerleave", clearRepeat);
   });
 
+  settingsBtn.addEventListener("click", () => {
+    resetDropStreak();
+    showSettingsModal();
+  });
+  closeSettingsBtn.addEventListener("click", hideSettingsModal);
+  settingsModal.addEventListener("click", (e) => {
+    if (e.target === settingsModal) hideSettingsModal();
+  });
+  soundEnabledToggle.addEventListener("change", async () => {
+    if (soundEnabledToggle.checked) await ensureAudio(false);
+    setMuted(!soundEnabledToggle.checked);
+  });
+  bgmVolumeDial.addEventListener("input", () => saveAudioLevel("bgm", Number(bgmVolumeDial.value) / 100));
+  sfxVolumeDial.addEventListener("input", () => saveAudioLevel("sfx", Number(sfxVolumeDial.value) / 100));
+  lineVolumeDial.addEventListener("input", () => saveAudioLevel("line", Number(lineVolumeDial.value) / 100));
+  testBgmBtn.addEventListener("click", async () => {
+    if (!await ensureAudio(false) || soundMuted) return;
+    const t = audioCtx.currentTime + .015;
+    [261.63, 329.63, 392].forEach((freq, i) => tone(freq, .32, i === 1 ? "triangle" : "sine", .045, t + i * .025, freq * 1.004, musicGain));
+  });
+  testSfxBtn.addEventListener("click", async () => {
+    if (!await ensureAudio(false) || soundMuted) return;
+    sfxRotate();
+    window.setTimeout(sfxLand, 90);
+  });
+  testLineBtn.addEventListener("click", async () => {
+    if (!await ensureAudio(false) || soundMuted) return;
+    sfxLineClear(2);
+    speakClear(2);
+  });
+
   soundBtn.addEventListener("click", async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -1672,6 +1797,7 @@
     if (document.hidden && !gameOver) togglePause(true);
   });
 
+  syncAudioSettingsUI();
   resetGame();
   cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(frame);
