@@ -171,3 +171,22 @@ test("ghost rival line clears stay gray and board name stays compact", () => {
   assert.match(css, /color:\s*#9aa0aa/);
   assert.match(css, /\.rival-board-name\s*\{/);
 });
+
+
+test("combo expires after ten seconds and max charge uses rainbow frame", () => {
+  assert.match(js, /DROP_STREAK_TIMEOUT_MS\s*=\s*10000/);
+  assert.match(js, /function\s+armDropStreakExpiry\b/);
+  assert.match(js, /setTimeout\([\s\S]*DROP_STREAK_TIMEOUT_MS/);
+  assert.match(js, /armDropStreakExpiry\(\)/);
+  assert.match(css, /\.board-wrap\[data-fever=["']4["']\]::before/);
+  assert.match(css, /combo-max-rainbow/);
+});
+
+test("ghost rival combo is gray", () => {
+  assert.match(html, /id=["']rivalComboFx["']/);
+  assert.match(js, /function\s+showRivalCombo\b/);
+  assert.match(js, /COMBO ×/);
+  assert.match(js, /rival\.streak > rivalLastStreak/);
+  assert.match(css, /\.rival-combo-fx\s*\{/);
+  assert.match(css, /color:\s*#8f949d/);
+});
