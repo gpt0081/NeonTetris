@@ -70,6 +70,13 @@ test("mobile game shell keeps protected controls, FEVER and ghost rival without 
   await expect(page.locator("#sfxVolumeValue")).toHaveText("180%");
   await page.locator("#lineVolumeDial").fill("300");
   await expect(page.locator("#lineVolumeValue")).toHaveText("300%");
+  await expect(page.locator("#batterySaverToggle")).not.toBeChecked();
+  await page.locator("#batterySaverToggle").check();
+  await expect(page.locator("#batterySaverToggle")).toBeChecked();
+  await expect.poll(() => page.locator(".app").getAttribute("data-battery-saver")).toBe("1");
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("neon-tetris-battery-saver"))).toBe("1");
+  await page.locator("#batterySaverToggle").uncheck();
+  await expect.poll(() => page.locator(".app").getAttribute("data-battery-saver")).toBe("0");
   await page.locator("#testBgmBtn").click();
   await page.locator("#testSfxBtn").click();
   await page.locator("#testLineBtn").click();
