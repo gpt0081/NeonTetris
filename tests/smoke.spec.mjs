@@ -25,6 +25,13 @@ test("mobile game shell keeps protected controls, FEVER and ghost rival without 
   });
 
   await page.goto("/");
+  await expect(page.locator("#homeScreen")).toBeVisible();
+  await expect(page.locator("#playerGate")).toBeHidden();
+  await expect(page.locator("#homeStartBtn")).toBeVisible();
+  await expect(page.locator("#homeSettingsBtn")).toBeVisible();
+  await expect(page.locator("#homeRankBtn")).toBeVisible();
+  await page.locator("#homeStartBtn").click();
+  await expect(page.locator("#homeScreen")).toBeHidden();
   await expect(page.locator("#playerGate")).toBeVisible();
   await page.locator("#nicknameInput").fill("CI-PLAYER");
   await expect(page.locator("#rivalSelect option")).toHaveCount(2);
@@ -48,6 +55,12 @@ test("mobile game shell keeps protected controls, FEVER and ghost rival without 
   await expect(page.locator("#settingsBtn")).toBeVisible();
 
   await page.locator("#settingsBtn").click();
+  await expect(page.locator("#quickMenuModal")).toBeVisible();
+  await expect(page.locator("#menuHomeBtn")).toBeVisible();
+  await expect(page.locator("#menuSettingsBtn")).toBeVisible();
+  await expect(page.locator("#menuRankBtn")).toBeVisible();
+  await page.locator("#menuSettingsBtn").click();
+  await expect(page.locator("#quickMenuModal")).toBeHidden();
   await expect(page.locator("#settingsModal")).toBeVisible();
   await page.locator("#bgmVolumeDial").fill("35");
   await expect(page.locator("#bgmVolumeValue")).toHaveText("35%");
