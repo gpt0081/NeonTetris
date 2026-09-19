@@ -247,3 +247,18 @@ test("game UI text cannot be selected", () => {
   assert.match(css, /-webkit-touch-callout:\s*none/);
   assert.match(css, /input\[type=["']text["']\][\s\S]*user-select:\s*text/);
 });
+
+
+test("thermal optimization and battery saver remain available", () => {
+  assert.match(html, /id=["']batterySaverToggle["']/);
+  assert.match(js, /NORMAL_RENDER_FPS\s*=\s*45/);
+  assert.match(js, /BATTERY_RENDER_FPS\s*=\s*24/);
+  assert.match(js, /function\s+startFrameLoop\b/);
+  assert.match(js, /function\s+stopFrameLoop\b/);
+  assert.match(js, /function\s+applyBatterySaver\b/);
+  assert.match(js, /neon-tetris-battery-saver/);
+  assert.match(js, /batterySaver \|\| particles\.length >= 180/);
+  assert.match(js, /audioCtx\.state === ["']closed["'] \|\| batterySaver/);
+  assert.match(css, /body\[data-battery-saver=["']1["']\]/);
+  assert.match(css, /backdrop-filter:\s*none/);
+});

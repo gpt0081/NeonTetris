@@ -58,6 +58,7 @@
   const bgmVolumeDial = document.getElementById("bgmVolumeDial");
   const sfxVolumeDial = document.getElementById("sfxVolumeDial");
   const lineVolumeDial = document.getElementById("lineVolumeDial");
+  const batterySaverToggle = document.getElementById("batterySaverToggle");
   const bgmVolumeValue = document.getElementById("bgmVolumeValue");
   const sfxVolumeValue = document.getElementById("sfxVolumeValue");
   const lineVolumeValue = document.getElementById("lineVolumeValue");
@@ -114,6 +115,11 @@
   let lastTime = 0;
   let dropAccumulator = 0;
   let rafId = 0;
+  let frameTimer = null;
+  let lastFrameTime = 0;
+  let renderDirty = true;
+  const NORMAL_RENDER_FPS = 45;
+  const BATTERY_RENDER_FPS = 24;
   let particles = [];
   let shockwaves = [];
   let flash = 0;
@@ -177,6 +183,8 @@
   let bgmVolume = readAudioLevel("neon-tetris-bgm-volume", 1);
   let sfxVolume = readAudioLevel("neon-tetris-sfx-volume", 1);
   let lineVolume = readAudioLevel("neon-tetris-line-volume", 1);
+  let batterySaver = localStorage.getItem("neon-tetris-battery-saver") === "1";
+  let lastRivalRenderSecond = -1;
 
   bestEl.textContent = best.toLocaleString();
 
@@ -231,6 +239,7 @@
 
   function syncAudioSettingsUI() {
     soundEnabledToggle.checked = !soundMuted;
+    batterySaverToggle.checked = batterySaver;
     setDialVisual(bgmVolumeDial, bgmVolumeValue, bgmVolume);
     setDialVisual(sfxVolumeDial, sfxVolumeValue, sfxVolume);
     setDialVisual(lineVolumeDial, lineVolumeValue, lineVolume);
@@ -530,7 +539,10 @@
     myRivalScore.textContent = score.toLocaleString();
     ghostRivalScore.textContent = rival.score.toLocaleString();
     rivalStats.textContent = `${rival.lines}L · F${rival.fever} · ×${rival.streak}`;
-    drawRivalBoard(rival);
+    if (!batterySaver || rival.t !== lastRivalRenderSecond) {
+      drawRivalBoard(rival);
+      lastRivalRenderSecond = rival.t;
+    }
 
     if (!announce) {
       rivalLastFever = rival.fever;
@@ -558,8 +570,70 @@
     }
   }
 
+  function markRenderDirty() {
+    renderDirty = true;
+  }
+
+  function renderFrameInterval() {
+    return 1000 / (batterySaver ? BATTERY_RENDER_FPS : NORMAL_RENDER_FPS);
+  }
+
+  function stopFrameLoop() {
+    if (frameTimer) {
+      clearTimeout(frameTimer);
+      frameTimer = null;
+    }
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = 0;
+    }
+  }
+
+  function scheduleNextFrame() {
+    if (document.hidden || paused || gameOver || !playerReady) {
+      stopFrameLoop();
+      return;
+    }
+    const delay = Math.max(0, renderFrameInterval() - (performance.now() - lastFrameTime));
+    frameTimer = window.setTimeout(() => {
+      frameTimer = null;
+      rafId = requestAnimationFrame(frame);
+    }, delay);
+  }
+
+  function startFrameLoop() {
+    stopFrameLoop();
+    if (document.hidden || paused || gameOver || !playerReady) return;
+    lastTime = performance.now();
+    lastFrameTime = 0;
+    scheduleNextFrame();
+  }
+
+  function applyBatterySaver() {
+    localStorage.setItem("neon-tetris-battery-saver", batterySaver ? "1" : "0");
+    batterySaverToggle.checked = batterySaver;
+    appEl.dataset.batterySaver = batterySaver ? "1" : "0";
+    document.body.dataset.batterySaver = batterySaver ? "1" : "0";
+    particles = [];
+    shockwaves = [];
+    flash = 0;
+    appEl.getAnimations().forEach(anim => anim.cancel());
+    boardWrap.getAnimations().forEach(anim => anim.cancel());
+    if (batterySaver && "speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (audioCtx && musicGain) {
+      const now = audioCtx.currentTime;
+      musicGain.gain.cancelScheduledValues(now);
+      musicGain.gain.setTargetAtTime(batterySaver ? .0001 : musicBaseLevel * bgmVolume, now, .035);
+    }
+    lastRivalRenderSecond = -1;
+    markRenderDirty();
+    if (!paused && !gameOver && playerReady) startFrameLoop();
+    else if (board && current) drawBoard(0);
+  }
+
   function showHomeScreen() {
     paused = true;
+    stopFrameLoop();
     hideOverlay();
     playerGate.classList.add("hidden");
     quickMenuModal.classList.add("hidden");
@@ -576,6 +650,7 @@
   function showQuickMenu() {
     quickMenuWasPaused = paused;
     paused = true;
+    stopFrameLoop();
     setMusicLevel(PAUSED_MUSIC_LEVEL);
     quickMenuModal.classList.remove("hidden");
   }
@@ -586,11 +661,14 @@
       paused = false;
       setMusicLevel(NORMAL_MUSIC_LEVEL);
       lastTime = performance.now();
+      markRenderDirty();
+      startFrameLoop();
     }
   }
 
   function showPlayerGate() {
     paused = true;
+    stopFrameLoop();
     homeScreen.classList.add("hidden");
     playerGate.classList.remove("hidden");
     nicknameInput.value = localStorage.getItem("neon-tetris-last-player") || "";
@@ -620,6 +698,8 @@
     lastTime = performance.now();
     resetDropStreak();
     beginReplayRun();
+    markRenderDirty();
+    startFrameLoop();
     return true;
   }
 
@@ -628,6 +708,7 @@
     settingsResumeAfterClose = resumeAfterClose;
     if (!gameOver) {
       paused = true;
+      stopFrameLoop();
       setMusicLevel(PAUSED_MUSIC_LEVEL);
     }
     syncAudioSettingsUI();
@@ -640,6 +721,7 @@
       paused = false;
       setMusicLevel(NORMAL_MUSIC_LEVEL);
       lastTime = performance.now();
+      startFrameLoop();
     }
   }
 
@@ -649,6 +731,7 @@
     rankResumeAfterClose = resumeAfterClose;
     if (!gameOver) {
       paused = true;
+      stopFrameLoop();
       setMusicLevel(PAUSED_MUSIC_LEVEL);
     }
     rankModal.classList.remove("hidden");
@@ -660,6 +743,7 @@
       paused = false;
       setMusicLevel(NORMAL_MUSIC_LEVEL);
       lastTime = performance.now();
+      startFrameLoop();
     }
   }
 
@@ -824,7 +908,7 @@
     if (!musicTimer) {
       nextMusicTime = audioCtx.currentTime + .06;
       musicStep = 0;
-      musicTimer = window.setInterval(scheduleMusic, 90);
+      musicTimer = window.setInterval(scheduleMusic, 160);
       scheduleMusic();
     }
 
@@ -852,7 +936,7 @@
     if (!audioCtx || !musicGain) return;
     const now = audioCtx.currentTime;
     musicGain.gain.cancelScheduledValues(now);
-    musicGain.gain.setTargetAtTime(value * bgmVolume, now, ramp);
+    musicGain.gain.setTargetAtTime(batterySaver ? .0001 : value * bgmVolume, now, ramp);
   }
 
   function applyAudioMix() {
@@ -861,7 +945,7 @@
     const now = audioCtx.currentTime;
     if (musicGain) {
       musicGain.gain.cancelScheduledValues(now);
-      musicGain.gain.setTargetAtTime(musicBaseLevel * bgmVolume, now, .035);
+      musicGain.gain.setTargetAtTime(batterySaver ? .0001 : musicBaseLevel * bgmVolume, now, .035);
     }
     if (sfxGain) {
       sfxGain.gain.cancelScheduledValues(now);
@@ -1002,7 +1086,10 @@
   }
 
   function scheduleMusic() {
-    if (!audioCtx || !musicGain || audioCtx.state === "closed") return;
+    if (!audioCtx || !musicGain || audioCtx.state === "closed" || batterySaver) {
+      if (audioCtx) nextMusicTime = audioCtx.currentTime + .16;
+      return;
+    }
     const bpm = FEVER_LEVELS[feverTier].bpm;
     const stepDur = 60 / bpm / 4;
     const bass = [55,0,82.41,0,65.41,0,73.42,0,55,0,98,0,65.41,0,82.41,0];
@@ -1198,6 +1285,7 @@
   }
 
   function screenBump(strength = 1) {
+    if (batterySaver) return;
     const app = document.querySelector(".app");
     const power = Math.max(1, strength);
     const amp = Math.min(24, 4 + power * 2.15);
@@ -1215,7 +1303,7 @@
   }
 
   function speakClear(count) {
-    if (soundMuted || !("speechSynthesis" in window)) return;
+    if (batterySaver || soundMuted || !("speechSynthesis" in window)) return;
     const lines = Math.min(4, Math.max(1, count));
     const words = ["", "Line clear!", "Double combo!", "Triple combo!", "Quattro!"];
     window.speechSynthesis.cancel();
@@ -1232,6 +1320,7 @@
   }
 
   function impact(strength = 1) {
+    if (batterySaver) return;
     const heavy = strength > 1;
     const amp = heavy ? Math.min(14, 4 + strength * 2.7) : 3;
     const duration = heavy ? Math.min(560, 260 + strength * 70) : 150;
@@ -1270,7 +1359,8 @@
   }
 
   function spawnFirework(cx, cy, power, palette, delay = 0) {
-    const sparks = Math.round(12 + power * 6);
+    if (batterySaver || particles.length >= 180) return;
+    const sparks = Math.min(36, Math.round(10 + power * 5));
     const spin = Math.random() * Math.PI * 2;
     for (let i = 0; i < sparks; i++) {
       const angle = spin + (Math.PI * 2 * i / sparks) + (Math.random() - .5) * .18;
@@ -1295,6 +1385,7 @@
   }
 
   function spawnLineFx(rows) {
+    if (batterySaver) return;
     const count = rows.length;
     const tier = Math.min(4, Math.max(1, count));
     const power = [0, 1, 1.7, 2.65, 3.8][tier];
@@ -1329,7 +1420,7 @@
         });
       }
 
-      const particleCount = 24 + tier * 10;
+      const particleCount = Math.min(42, 18 + tier * 6);
       for (let i = 0; i < particleCount; i++) {
         const life = 500 + Math.random() * (520 + tier * 120);
         const angle = (Math.random() - .5) * Math.PI * 1.12;
@@ -1384,6 +1475,8 @@
       }
     }
 
+    particles = particles.slice(-180);
+    shockwaves = shockwaves.slice(-18);
     flash = Math.max(flash, .65 + tier * .38);
   }
 
@@ -1493,7 +1586,7 @@
     if (!gameOver) {
       const ghostY = getGhostY();
 
-      if (feverTier >= 1) {
+      if (!batterySaver && feverTier >= 1) {
         const trails = feverTier >= 4 ? 4 : feverTier;
         for (let trail = trails; trail >= 1; trail--) {
           current.shape.forEach((row, y) => row.forEach((v, x) => {
@@ -1523,7 +1616,7 @@
       }));
     }
 
-    drawEffects(delta);
+    if (!batterySaver) drawEffects(delta);
   }
 
   function drawEffects(delta) {
@@ -1643,23 +1736,35 @@
   }
 
   function frame(time = 0) {
-    const delta = Math.min(50, time - lastTime || 0);
-    lastTime = time;
-    if (!paused && !gameOver) {
-      replayClock += delta;
-      replaySampleAccumulator += delta;
-      if (replaySampleAccumulator >= 1000) {
-        replaySampleAccumulator %= 1000;
-        captureReplaySnapshot(false);
-      }
-      dropAccumulator += delta;
-      if (dropAccumulator >= dropInterval()) {
-        softDrop(false);
-        dropAccumulator = 0;
-      }
+    rafId = 0;
+    if (document.hidden || paused || gameOver || !playerReady) {
+      stopFrameLoop();
+      return;
     }
-    drawBoard(delta);
-    rafId = requestAnimationFrame(frame);
+    const delta = Math.min(80, time - lastTime || renderFrameInterval());
+    lastTime = time;
+    lastFrameTime = performance.now();
+
+    replayClock += delta;
+    replaySampleAccumulator += delta;
+    if (replaySampleAccumulator >= 1000) {
+      replaySampleAccumulator %= 1000;
+      captureReplaySnapshot(false);
+      markRenderDirty();
+    }
+    dropAccumulator += delta;
+    if (dropAccumulator >= dropInterval()) {
+      softDrop(false);
+      dropAccumulator = 0;
+      markRenderDirty();
+    }
+
+    const animatedEffects = !batterySaver && (particles.length > 0 || shockwaves.length > 0 || flash > 0);
+    if (!batterySaver || renderDirty || animatedEffects) {
+      drawBoard(delta);
+      renderDirty = false;
+    }
+    scheduleNextFrame();
   }
 
   function showOverlay(kicker, title, buttonText) {
@@ -1677,16 +1782,21 @@
     if (gameOver) return;
     paused = typeof force === "boolean" ? force : !paused;
     pauseBtn.textContent = paused ? "▶" : "Ⅱ";
-    setMusicLevel(paused ? .055 : .24);
-    if (paused) showOverlay("PAUSED", "게임 일시정지", "계속하기");
-    else {
+    setMusicLevel(paused ? PAUSED_MUSIC_LEVEL : NORMAL_MUSIC_LEVEL);
+    if (paused) {
+      stopFrameLoop();
+      showOverlay("PAUSED", "게임 일시정지", "계속하기");
+    } else {
       hideOverlay();
       lastTime = performance.now();
+      markRenderDirty();
+      startFrameLoop();
     }
   }
 
   function endGame() {
     gameOver = true;
+    stopFrameLoop();
     setMusicLevel(GAME_OVER_MUSIC_LEVEL);
     sfxGameOver();
     updateHUD();
@@ -1764,6 +1874,7 @@
     pauseBtn.textContent = "Ⅱ";
     hideOverlay();
     updateHUD();
+    markRenderDirty();
     drawBoard(16);
     if (!playerReady) {
       rivalPanel.classList.add("hidden");
@@ -1771,11 +1882,13 @@
       else showPlayerGate();
     } else {
       beginReplayRun();
+      startFrameLoop();
     }
   }
 
   function perform(action) {
     if (!["left", "right", "rotate", "drop"].includes(action)) resetDropStreak();
+    markRenderDirty();
     switch (action) {
       case "left": move(-1); break;
       case "right": move(1); break;
@@ -1795,6 +1908,7 @@
     if (handledKeys.has(e.code)) e.preventDefault();
     if (handledKeys.has(e.code) && !streakSafeKeys.has(e.code)) resetDropStreak();
     if (e.repeat && ["Space","KeyC","KeyP","Escape","KeyR"].includes(e.code)) return;
+    markRenderDirty();
     switch (e.code) {
       case "ArrowLeft": move(-1); break;
       case "ArrowRight": move(1); break;
@@ -1873,6 +1987,10 @@
   bgmVolumeDial.addEventListener("input", () => saveAudioLevel("bgm", Number(bgmVolumeDial.value) / 100));
   sfxVolumeDial.addEventListener("input", () => saveAudioLevel("sfx", Number(sfxVolumeDial.value) / 100));
   lineVolumeDial.addEventListener("input", () => saveAudioLevel("line", Number(lineVolumeDial.value) / 100));
+  batterySaverToggle.addEventListener("change", () => {
+    batterySaver = batterySaverToggle.checked;
+    applyBatterySaver();
+  });
   [bgmVolumeDial, sfxVolumeDial, lineVolumeDial].forEach(attachRotaryDial);
   testBgmBtn.addEventListener("click", async () => {
     if (!await ensureAudio(false) || soundMuted) return;
@@ -1938,11 +2056,17 @@
   });
 
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden && !gameOver) togglePause(true);
+    if (document.hidden) {
+      stopFrameLoop();
+      if (!gameOver && playerReady) togglePause(true);
+    } else if (!paused && !gameOver && playerReady) {
+      markRenderDirty();
+      startFrameLoop();
+    }
   });
 
   syncAudioSettingsUI();
+  applyBatterySaver();
   resetGame(true);
-  cancelAnimationFrame(rafId);
-  rafId = requestAnimationFrame(frame);
+  stopFrameLoop();
 })();
