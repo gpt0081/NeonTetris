@@ -55,6 +55,13 @@
   const rankModal = document.getElementById("rankModal");
   const rankList = document.getElementById("rankList");
   const closeRankBtn = document.getElementById("closeRankBtn");
+  const feverPanel = document.getElementById("feverPanel");
+  const feverLevelEl = document.getElementById("feverLevel");
+  const feverMeter = document.getElementById("feverMeter");
+  const feverFill = document.getElementById("feverFill");
+  const feverMultiplierEl = document.getElementById("feverMultiplier");
+  const feverNextEl = document.getElementById("feverNext");
+  const appEl = document.querySelector(".app");
 
   let board;
   let current;
@@ -80,6 +87,17 @@
   let playerName = "";
   let playerReady = false;
   let rankWasPaused = false;
+  let feverTier = 0;
+  let feverMultiplier = 1;
+  let maxDropStreak = 0;
+  let maxFeverTier = 0;
+  const FEVER_LEVELS = [
+    { min: 0,  label: "COOL",      multiplier: 1,   bpm: 118, speed: 1 },
+    { min: 5,  label: "HEAT",      multiplier: 1.2, bpm: 126, speed: .94 },
+    { min: 10, label: "RUSH",      multiplier: 1.5, bpm: 136, speed: .86 },
+    { min: 20, label: "OVERDRIVE", multiplier: 2,   bpm: 148, speed: .76 },
+    { min: 30, label: "FEVER MAX", multiplier: 3,   bpm: 164, speed: .64 }
+  ];
 
   let audioCtx = null;
   let masterGain = null;
@@ -103,7 +121,7 @@
       if (!Array.isArray(parsed)) return [];
       return parsed
         .filter(row => row && typeof row.name === "string" && Number.isFinite(Number(row.score)))
-        .map(row => ({ name: normalizeNickname(row.name), score: Math.max(0, Number(row.score) || 0), lines: Math.max(0, Number(row.lines) || 0), level: Math.max(1, Number(row.level) || 1) }))
+        .map(row => ({ name: normalizeNickname(row.name), score: Math.max(0, Number(row.score) || 0), lines: Math.max(0, Number(row.lines) || 0), level: Math.max(1, Number(row.level) || 1), maxStreak: Math.max(0, Number(row.maxStreak) || 0), maxFeverTier: Math.max(0, Math.min(4, Number(row.maxFeverTier) || 0)) }))
         .filter(row => row.name)
         .sort((a, b) => b.score - a.score)
         .slice(0, 20);
@@ -129,7 +147,7 @@
       name.className = "rank-name";
       value.className = "rank-score";
       name.textContent = row.name;
-      value.textContent = row.score.toLocaleString();
+      value.textContent = row.score.toLocaleString() + ` · F${row.maxFeverTier} · ×${row.maxStreak}`;
       li.append(name, value);
       rankList.appendChild(li);
     });
@@ -146,8 +164,10 @@
         existing.lines = lines;
         existing.level = level;
       }
+      existing.maxStreak = Math.max(existing.maxStreak || 0, maxDropStreak);
+      existing.maxFeverTier = Math.max(existing.maxFeverTier || 0, maxFeverTier);
     } else {
-      rows.push({ name: playerName, score, lines, level });
+      rows.push({ name: playerName, score, lines, level, maxStreak: maxDropStreak, maxFeverTier });
     }
     rows.sort((a, b) => b.score - a.score);
     localStorage.setItem("neon-tetris-ranking", JSON.stringify(rows.slice(0, 20)));
@@ -200,20 +220,100 @@
     }
   }
 
+  function getFeverTier(streak = dropStreak) {
+    if (streak >= 30) return 4;
+    if (streak >= 20) return 3;
+    if (streak >= 10) return 2;
+    if (streak >= 5) return 1;
+    return 0;
+  }
+
+  function feverProgress(streak = dropStreak) {
+    const tier = getFeverTier(streak);
+    if (tier >= 4) return 100;
+    const start = FEVER_LEVELS[tier].min;
+    const end = FEVER_LEVELS[tier + 1].min;
+    return Math.max(0, Math.min(100, ((streak - start) / (end - start)) * 100));
+  }
+
+  function sfxFeverUp(tier) {
+    if (!audioCtx || tier <= 0) return;
+    const t = audioCtx.currentTime;
+    const root = [0, 440, 523.25, 659.25, 783.99][tier];
+    tone(root, .13, "square", .045 + tier * .008, t, root * 1.24);
+    tone(root * 1.5, .16, "triangle", .032 + tier * .007, t + .055, root * 2);
+    if (tier >= 3) noise(.08, .04 + tier * .008, 4200, t);
+  }
+
+  function updateFeverState(announce = false) {
+    const previous = feverTier;
+    feverTier = getFeverTier();
+    feverMultiplier = FEVER_LEVELS[feverTier].multiplier;
+    maxFeverTier = Math.max(maxFeverTier, feverTier);
+    const cfg = FEVER_LEVELS[feverTier];
+    const progress = feverProgress();
+
+    feverPanel.dataset.tier = String(feverTier);
+    appEl.dataset.fever = String(feverTier);
+    boardWrap.dataset.fever = String(feverTier);
+    feverLevelEl.textContent = cfg.label;
+    feverMultiplierEl.textContent = `×${cfg.multiplier.toFixed(1)}`;
+    feverFill.style.width = `${progress}%`;
+    feverMeter.setAttribute("aria-valuenow", String(Math.round(progress)));
+    feverNextEl.textContent = feverTier >= 4 ? "MAXIMUM" : `${FEVER_LEVELS[feverTier + 1].min - dropStreak} DROPS`;
+
+    if (announce && feverTier > previous) {
+      sfxFeverUp(feverTier);
+      dropStreakFx.textContent = feverTier === 4 ? "FEVER MAX!" : cfg.label + "!";
+      dropStreakFx.dataset.tier = String(feverTier);
+      dropStreakFx.classList.remove("active");
+      void dropStreakFx.offsetWidth;
+      dropStreakFx.classList.add("active");
+      flash = Math.max(flash, .32 + feverTier * .18);
+    }
+  }
+
+  function triggerFeverBurst() {
+    if (feverTier < 4 || dropStreak % 5 !== 0) return;
+    const bonus = 500 * level;
+    score += Math.round(bonus * feverMultiplier);
+    const palette = ["#ffffff", "#5ffff1", "#ff4fd8", "#ffe56a", "#7b7cff"];
+    spawnFirework(canvas.width * .5, canvas.height * .45, 4.4, palette);
+    spawnFirework(canvas.width * .28, canvas.height * .58, 3.6, palette, 55);
+    spawnFirework(canvas.width * .72, canvas.height * .58, 3.6, palette, 90);
+    dropStreakFx.textContent = `FEVER BURST +${Math.round(bonus * feverMultiplier).toLocaleString()}`;
+    dropStreakFx.dataset.tier = "4";
+    dropStreakFx.classList.remove("active");
+    void dropStreakFx.offsetWidth;
+    dropStreakFx.classList.add("active");
+    impact(4.4);
+    updateHUD();
+  }
+
+  function addScore(base) {
+    score += Math.round(base * feverMultiplier);
+  }
+
   function resetDropStreak() {
     dropStreak = 0;
     clearTimeout(dropStreakTimer);
     dropStreakFx.classList.remove("active");
+    updateFeverState(false);
   }
 
   function registerHardDrop() {
     dropStreak += 1;
-    const tier = Math.min(4, Math.max(1, Math.ceil(dropStreak / 3)));
-    dropStreakFx.textContent = `DROP ×${dropStreak}`;
-    dropStreakFx.dataset.tier = String(tier);
-    dropStreakFx.classList.remove("active");
-    void dropStreakFx.offsetWidth;
-    dropStreakFx.classList.add("active");
+    maxDropStreak = Math.max(maxDropStreak, dropStreak);
+    const previousTier = feverTier;
+    updateFeverState(true);
+    const visualTier = Math.max(1, feverTier);
+    if (feverTier === previousTier) {
+      dropStreakFx.textContent = `DROP ×${dropStreak}`;
+      dropStreakFx.dataset.tier = String(visualTier);
+      dropStreakFx.classList.remove("active");
+      void dropStreakFx.offsetWidth;
+      dropStreakFx.classList.add("active");
+    }
     clearTimeout(dropStreakTimer);
     dropStreakTimer = window.setTimeout(() => dropStreakFx.classList.remove("active"), 760);
     return dropStreak;
@@ -400,7 +500,7 @@
 
   function scheduleMusic() {
     if (!audioCtx || !musicGain || audioCtx.state === "closed") return;
-    const bpm = 118;
+    const bpm = FEVER_LEVELS[feverTier].bpm;
     const stepDur = 60 / bpm / 4;
     const bass = [55,0,82.41,0,65.41,0,73.42,0,55,0,98,0,65.41,0,82.41,0];
     const melody = [
@@ -564,7 +664,7 @@
     if (!collides(current, 0, 1)) {
       current.y++;
       if (manual) {
-        score += 1;
+        addScore(1);
         updateHUD();
       }
       return true;
@@ -581,9 +681,10 @@
       current.y++;
       distance++;
     }
-    score += distance * 2;
+    addScore(distance * 2);
     sfxHardDrop();
     lockPiece(chain);
+    triggerFeverBurst();
   }
 
   function retriggerClass(name, ms) {
@@ -799,7 +900,7 @@
     const table = [0, 100, 300, 500, 800];
     const capped = Math.min(4, cleared);
     const overflowBonus = cleared > 4 ? (cleared - 4) * 500 : 0;
-    score += (table[capped] + overflowBonus) * level;
+    addScore((table[capped] + overflowBonus) * level);
     lines += cleared;
     level = Math.floor(lines / 10) + 1;
     sfxLineClear(cleared);
@@ -888,6 +989,17 @@
 
     if (!gameOver) {
       const ghostY = getGhostY();
+
+      if (feverTier >= 1) {
+        const trails = feverTier >= 4 ? 4 : feverTier;
+        for (let trail = trails; trail >= 1; trail--) {
+          current.shape.forEach((row, y) => row.forEach((v, x) => {
+            if (!v) return;
+            const by = current.y + y - trail;
+            if (by >= 0) drawCell(ctx, (current.x + x) * BLOCK, by * BLOCK, COLORS[current.type], .035 + feverTier * .018);
+          }));
+        }
+      }
       current.shape.forEach((row, y) => row.forEach((v, x) => {
         if (!v) return;
         const by = ghostY + y;
@@ -1023,7 +1135,8 @@
   }
 
   function dropInterval() {
-    return Math.max(90, 850 - (level - 1) * 65);
+    const base = Math.max(90, 850 - (level - 1) * 65);
+    return Math.max(58, base * FEVER_LEVELS[feverTier].speed);
   }
 
   function frame(time = 0) {
@@ -1092,9 +1205,14 @@
     clearTimeout(fxTimer);
     clearTimeout(dropStreakTimer);
     dropStreak = 0;
+    feverTier = 0;
+    feverMultiplier = 1;
+    maxDropStreak = 0;
+    maxFeverTier = 0;
     fxBanner.classList.remove("active");
     dropStreakFx.classList.remove("active");
     boardWrap.classList.remove("slam", "mega-slam", "line-burst");
+    updateFeverState(false);
     setMusicLevel(.24);
     pauseBtn.textContent = "Ⅱ";
     hideOverlay();
