@@ -1,16 +1,40 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 
-test("mobile game shell keeps protected controls, nickname gate and ranking without page errors", async ({ page }) => {
+test("mobile game shell keeps protected controls, FEVER and ghost rival without page errors", async ({ page }) => {
   const errors = [];
   page.on("pageerror", error => errors.push(String(error)));
+
+  await page.addInitScript(() => {
+    localStorage.setItem("neon-tetris-ranking", JSON.stringify([
+      {
+        name: "GHOST-01",
+        score: 1400,
+        lines: 4,
+        level: 1,
+        maxStreak: 6,
+        maxFeverTier: 1,
+        duration: 2000,
+        replay: [
+          { t: 0, score: 0, lines: 0, level: 1, fever: 0, streak: 0 },
+          { t: 1, score: 80, lines: 0, level: 1, fever: 0, streak: 2 },
+          { t: 2, score: 180, lines: 1, level: 1, fever: 1, streak: 5 }
+        ]
+      }
+    ]));
+  });
 
   await page.goto("/");
   await expect(page.locator("#playerGate")).toBeVisible();
   await page.locator("#nicknameInput").fill("CI-PLAYER");
+  await expect(page.locator("#rivalSelect option")).toHaveCount(2);
+  await page.locator("#rivalSelect").selectOption("0");
   await page.locator("#startGameBtn").click();
   await expect(page.locator("#playerGate")).toBeHidden();
   await expect(page.locator("#playerName")).toHaveText("CI-PLAYER");
+  await expect(page.locator("#rivalPanel")).toBeVisible();
+  await expect(page.locator("#rivalName")).toHaveText("GHOST-01");
+  await expect(page.locator("#rivalDelta")).toContainText("EVEN");
 
   await expect(page.locator("#gameCanvas")).toBeVisible();
   await expect(page.locator("#nextCanvas")).toBeVisible();
@@ -36,6 +60,9 @@ test("mobile game shell keeps protected controls, nickname gate and ranking with
   }
   await expect(page.locator("#feverLevel")).toHaveText("HEAT");
   await expect(page.locator("#feverMultiplier")).toHaveText("×1.2");
+
+  await page.waitForTimeout(1100);
+  await expect(page.locator("#ghostRivalScore")).not.toHaveText("0");
 
   await page.locator("#rankBtn").click();
   await expect(page.locator("#rankModal")).toBeVisible();
