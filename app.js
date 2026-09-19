@@ -43,6 +43,15 @@
   const pauseBtn = document.getElementById("pauseBtn");
   const soundBtn = document.getElementById("soundBtn");
   const settingsBtn = document.getElementById("settingsBtn");
+  const homeScreen = document.getElementById("homeScreen");
+  const homeStartBtn = document.getElementById("homeStartBtn");
+  const homeSettingsBtn = document.getElementById("homeSettingsBtn");
+  const homeRankBtn = document.getElementById("homeRankBtn");
+  const quickMenuModal = document.getElementById("quickMenuModal");
+  const closeQuickMenuBtn = document.getElementById("closeQuickMenuBtn");
+  const menuHomeBtn = document.getElementById("menuHomeBtn");
+  const menuSettingsBtn = document.getElementById("menuSettingsBtn");
+  const menuRankBtn = document.getElementById("menuRankBtn");
   const settingsModal = document.getElementById("settingsModal");
   const closeSettingsBtn = document.getElementById("closeSettingsBtn");
   const soundEnabledToggle = document.getElementById("soundEnabledToggle");
@@ -117,6 +126,9 @@
   let playerReady = false;
   let rankWasPaused = false;
   let settingsWasPaused = false;
+  let quickMenuWasPaused = false;
+  let settingsResumeAfterClose = false;
+  let rankResumeAfterClose = false;
   let feverTier = 0;
   let feverMultiplier = 1;
   let maxDropStreak = 0;
@@ -150,7 +162,13 @@
   let musicStep = 0;
   let nextMusicTime = 0;
   let soundMuted = localStorage.getItem("neon-tetris-muted") === "1";
-  let musicBaseLevel = .24;
+  const MASTER_OUTPUT = 1;
+  const NORMAL_MUSIC_LEVEL = .42;
+  const PAUSED_MUSIC_LEVEL = .10;
+  const GAME_OVER_MUSIC_LEVEL = .06;
+  const SFX_BASE_LEVEL = .95;
+  const LINE_BASE_LEVEL = 1;
+  let musicBaseLevel = NORMAL_MUSIC_LEVEL;
   const readAudioLevel = (key, fallback = 1) => {
     const value = Number(localStorage.getItem(key));
     return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
@@ -497,8 +515,40 @@
     }
   }
 
+  function showHomeScreen() {
+    paused = true;
+    hideOverlay();
+    playerGate.classList.add("hidden");
+    quickMenuModal.classList.add("hidden");
+    settingsModal.classList.add("hidden");
+    rankModal.classList.add("hidden");
+    homeScreen.classList.remove("hidden");
+    setMusicLevel(PAUSED_MUSIC_LEVEL);
+  }
+
+  function hideHomeScreen() {
+    homeScreen.classList.add("hidden");
+  }
+
+  function showQuickMenu() {
+    quickMenuWasPaused = paused;
+    paused = true;
+    setMusicLevel(PAUSED_MUSIC_LEVEL);
+    quickMenuModal.classList.remove("hidden");
+  }
+
+  function hideQuickMenu(resume = true) {
+    quickMenuModal.classList.add("hidden");
+    if (resume && playerReady && !gameOver && !quickMenuWasPaused) {
+      paused = false;
+      setMusicLevel(NORMAL_MUSIC_LEVEL);
+      lastTime = performance.now();
+    }
+  }
+
   function showPlayerGate() {
     paused = true;
+    homeScreen.classList.add("hidden");
     playerGate.classList.remove("hidden");
     nicknameInput.value = localStorage.getItem("neon-tetris-last-player") || "";
     nicknameError.textContent = "";
@@ -521,19 +571,21 @@
     selectedRival = Number.isInteger(rivalIndex) && rivalIndex >= 0 && rivals[rivalIndex]?.replay?.length >= 2 ? rivals[rivalIndex] : null;
     localStorage.setItem("neon-tetris-last-player", value);
     playerGate.classList.add("hidden");
+    homeScreen.classList.add("hidden");
     paused = false;
-    setMusicLevel(.24);
+    setMusicLevel(NORMAL_MUSIC_LEVEL);
     lastTime = performance.now();
     resetDropStreak();
     beginReplayRun();
     return true;
   }
 
-  function showSettingsModal() {
+  function showSettingsModal(resumeAfterClose = false) {
     settingsWasPaused = paused;
+    settingsResumeAfterClose = resumeAfterClose;
     if (!gameOver) {
       paused = true;
-      setMusicLevel(.055);
+      setMusicLevel(PAUSED_MUSIC_LEVEL);
     }
     syncAudioSettingsUI();
     settingsModal.classList.remove("hidden");
@@ -541,28 +593,29 @@
 
   function hideSettingsModal() {
     settingsModal.classList.add("hidden");
-    if (!gameOver && playerReady && !settingsWasPaused) {
+    if (!gameOver && playerReady && settingsResumeAfterClose) {
       paused = false;
-      setMusicLevel(.24);
+      setMusicLevel(NORMAL_MUSIC_LEVEL);
       lastTime = performance.now();
     }
   }
 
-  function showRankModal() {
+  function showRankModal(resumeAfterClose = !paused && playerReady) {
     renderLeaderboard();
     rankWasPaused = paused;
+    rankResumeAfterClose = resumeAfterClose;
     if (!gameOver) {
       paused = true;
-      setMusicLevel(.055);
+      setMusicLevel(PAUSED_MUSIC_LEVEL);
     }
     rankModal.classList.remove("hidden");
   }
 
   function hideRankModal() {
     rankModal.classList.add("hidden");
-    if (!gameOver && playerReady && !rankWasPaused) {
+    if (!gameOver && playerReady && rankResumeAfterClose) {
       paused = false;
-      setMusicLevel(.24);
+      setMusicLevel(NORMAL_MUSIC_LEVEL);
       lastTime = performance.now();
     }
   }
@@ -698,10 +751,10 @@
       compressor.ratio.value = 5;
       compressor.attack.value = .004;
       compressor.release.value = .18;
-      masterGain.gain.value = .72;
+      masterGain.gain.value = MASTER_OUTPUT;
       musicGain.gain.value = musicBaseLevel * bgmVolume;
-      sfxGain.gain.value = .62 * sfxVolume;
-      lineClearGain.gain.value = .72 * lineVolume;
+      sfxGain.gain.value = SFX_BASE_LEVEL * sfxVolume;
+      lineClearGain.gain.value = LINE_BASE_LEVEL * lineVolume;
       musicGain.connect(masterGain);
       sfxGain.connect(masterGain);
       lineClearGain.connect(masterGain);
@@ -735,7 +788,7 @@
     if (masterGain) {
       const now = audioCtx.currentTime;
       masterGain.gain.cancelScheduledValues(now);
-      masterGain.gain.setTargetAtTime(soundMuted ? .0001 : .72, now, .025);
+      masterGain.gain.setTargetAtTime(soundMuted ? .0001 : MASTER_OUTPUT, now, .025);
     }
 
     if (soundBtn) {
@@ -769,11 +822,11 @@
     }
     if (sfxGain) {
       sfxGain.gain.cancelScheduledValues(now);
-      sfxGain.gain.setTargetAtTime(.62 * sfxVolume, now, .035);
+      sfxGain.gain.setTargetAtTime(SFX_BASE_LEVEL * sfxVolume, now, .035);
     }
     if (lineClearGain) {
       lineClearGain.gain.cancelScheduledValues(now);
-      lineClearGain.gain.setTargetAtTime(.72 * lineVolume, now, .035);
+      lineClearGain.gain.setTargetAtTime(LINE_BASE_LEVEL * lineVolume, now, .035);
     }
   }
 
@@ -798,7 +851,7 @@
     if (audioCtx && masterGain) {
       const now = audioCtx.currentTime;
       masterGain.gain.cancelScheduledValues(now);
-      masterGain.gain.setTargetAtTime(value ? .0001 : .72, now, .03);
+      masterGain.gain.setTargetAtTime(value ? .0001 : MASTER_OUTPUT, now, .03);
     }
     if (soundBtn) {
       soundBtn.textContent = value ? "🔇" : "🔊";
@@ -1579,7 +1632,7 @@
 
   function endGame() {
     gameOver = true;
-    setMusicLevel(.035);
+    setMusicLevel(GAME_OVER_MUSIC_LEVEL);
     sfxGameOver();
     updateHUD();
     captureReplaySnapshot(true);
@@ -1587,6 +1640,17 @@
     const rivalSuffix = selectedRival ? " // " + selectedRival.name : " // " + (playerName || "PLAYER");
     recordRanking();
     showOverlay(rivalResult + rivalSuffix, score.toLocaleString() + "점", "다시 시작");
+  }
+
+  function goHome() {
+    playerReady = false;
+    playerName = "";
+    selectedRival = null;
+    playerNameEl.textContent = "...";
+    rivalSelect.value = "";
+    rivalPanel.classList.add("hidden");
+    rivalBoardCtx.clearRect(0, 0, rivalBoardCanvas.width, rivalBoardCanvas.height);
+    resetGame(true);
   }
 
   function restartWithPlayerSetup() {
@@ -1600,7 +1664,7 @@
     resetGame();
   }
 
-  function resetGame() {
+  function resetGame(toHome = false) {
     board = makeBoard();
     bag = [];
     hold = null;
@@ -1641,14 +1705,15 @@
     dropStreakFx.classList.remove("active");
     boardWrap.classList.remove("slam", "mega-slam", "line-burst");
     updateFeverState(false);
-    setMusicLevel(.24);
+    setMusicLevel(NORMAL_MUSIC_LEVEL);
     pauseBtn.textContent = "Ⅱ";
     hideOverlay();
     updateHUD();
     drawBoard(16);
     if (!playerReady) {
       rivalPanel.classList.add("hidden");
-      showPlayerGate();
+      if (toHome) showHomeScreen();
+      else showPlayerGate();
     } else {
       beginReplayRun();
     }
@@ -1716,8 +1781,32 @@
 
   settingsBtn.addEventListener("click", () => {
     resetDropStreak();
-    showSettingsModal();
+    showQuickMenu();
   });
+  closeQuickMenuBtn.addEventListener("click", () => hideQuickMenu(true));
+  quickMenuModal.addEventListener("click", (e) => {
+    if (e.target === quickMenuModal) hideQuickMenu(true);
+  });
+  menuHomeBtn.addEventListener("click", () => {
+    hideQuickMenu(false);
+    goHome();
+  });
+  menuSettingsBtn.addEventListener("click", () => {
+    const resume = !quickMenuWasPaused;
+    hideQuickMenu(false);
+    showSettingsModal(resume);
+  });
+  menuRankBtn.addEventListener("click", () => {
+    const resume = !quickMenuWasPaused;
+    hideQuickMenu(false);
+    showRankModal(resume);
+  });
+  homeStartBtn.addEventListener("click", () => {
+    hideHomeScreen();
+    showPlayerGate();
+  });
+  homeSettingsBtn.addEventListener("click", () => showSettingsModal(false));
+  homeRankBtn.addEventListener("click", () => showRankModal(false));
   closeSettingsBtn.addEventListener("click", hideSettingsModal);
   settingsModal.addEventListener("click", (e) => {
     if (e.target === settingsModal) hideSettingsModal();
@@ -1798,7 +1887,7 @@
   });
 
   syncAudioSettingsUI();
-  resetGame();
+  resetGame(true);
   cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(frame);
 })();
