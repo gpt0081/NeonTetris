@@ -771,3 +771,148 @@ footer span::before { content: "•"; margin-right: 7px; color: var(--accent); }
   .rival-combo-fx { font-size: 7px; }
   .board-wrap[data-fever="4"]::before { border-radius: 19px; }
 }
+
+
+/* AUDIO SETTINGS */
+.settings-card { width: min(520px, 100%); }
+.sound-master-row {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(255,255,255,.025);
+}
+.sound-master-row span { display: grid; gap: 3px; }
+.sound-master-row b { font-size: 11px; letter-spacing: .1em; }
+.sound-master-row small { color: var(--muted); font-size: 9px; }
+#soundEnabledToggle {
+  appearance: none;
+  width: 50px;
+  height: 28px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255,255,255,.07);
+  cursor: pointer;
+  position: relative;
+  transition: .18s ease;
+}
+#soundEnabledToggle::after {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 3px;
+  top: 3px;
+  border-radius: 50%;
+  background: #7d8799;
+  transition: .18s ease;
+}
+#soundEnabledToggle:checked {
+  background: rgba(142,255,223,.18);
+  border-color: rgba(142,255,223,.42);
+}
+#soundEnabledToggle:checked::after {
+  left: 25px;
+  background: var(--accent);
+  box-shadow: 0 0 14px rgba(142,255,223,.45);
+}
+.dial-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+.dial-control {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  padding: 13px 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255,255,255,.025);
+}
+.dial-control > span {
+  font-size: 8px;
+  letter-spacing: .15em;
+  color: var(--muted);
+}
+.dial-shell {
+  position: relative;
+  width: 86px;
+  height: 86px;
+  display: grid;
+  place-items: center;
+}
+.audio-dial {
+  --dial: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  position: absolute;
+  inset: 0;
+  width: 86px;
+  height: 86px;
+  margin: 0;
+  border-radius: 50%;
+  cursor: ew-resize;
+  background: conic-gradient(from 225deg, var(--accent) 0 var(--dial), rgba(255,255,255,.07) var(--dial) 75%, transparent 75% 100%);
+  transform: rotate(0deg);
+  filter: drop-shadow(0 0 12px rgba(142,255,223,.08));
+}
+.audio-dial::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+}
+.audio-dial::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 34px;
+  border-radius: 50%;
+  border: 2px solid #081018;
+  background: #dffdf6;
+  box-shadow: 0 0 10px rgba(142,255,223,.38);
+}
+.audio-dial::-moz-range-track { width: 100%; height: 100%; background: transparent; }
+.audio-dial::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #081018;
+  border-radius: 50%;
+  background: #dffdf6;
+}
+.dial-shell strong {
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+  min-width: 48px;
+  text-align: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.test-sound-btn {
+  width: 64px;
+  min-height: 28px;
+  border: 1px solid rgba(142,255,223,.18);
+  border-radius: 9px;
+  background: rgba(142,255,223,.045);
+  color: #dffdf6;
+  font-size: 8px;
+  letter-spacing: .12em;
+  cursor: pointer;
+}
+.test-sound-btn:active { transform: scale(.96); }
+.settings-copy { margin: 14px 0 0; color: #79869a; font-size: 10px; line-height: 1.45; text-align: center; }
+@media (max-width: 560px) {
+  .settings-card { padding: 18px 14px; }
+  .dial-grid { gap: 7px; }
+  .dial-control { padding-inline: 4px; }
+  .dial-shell, .audio-dial { width: 72px; height: 72px; }
+  .audio-dial::-webkit-slider-thumb { margin-top: 27px; }
+  .dial-shell strong { font-size: 11px; }
+}
