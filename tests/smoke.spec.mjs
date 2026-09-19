@@ -45,6 +45,22 @@ test("mobile game shell keeps protected controls, FEVER and ghost rival without 
   await expect(page.locator("#soundBtn")).toBeVisible();
   await expect(page.locator("#pauseBtn")).toBeVisible();
   await expect(page.locator("#rankBtn")).toBeVisible();
+  await expect(page.locator("#settingsBtn")).toBeVisible();
+
+  await page.locator("#settingsBtn").click();
+  await expect(page.locator("#settingsModal")).toBeVisible();
+  await page.locator("#bgmVolumeDial").fill("35");
+  await expect(page.locator("#bgmVolumeValue")).toHaveText("35%");
+  await page.locator("#sfxVolumeDial").fill("45");
+  await expect(page.locator("#sfxVolumeValue")).toHaveText("45%");
+  await page.locator("#lineVolumeDial").fill("55");
+  await expect(page.locator("#lineVolumeValue")).toHaveText("55%");
+  await page.locator("#testBgmBtn").click();
+  await page.locator("#testSfxBtn").click();
+  await page.locator("#testLineBtn").click();
+  await page.locator("#closeSettingsBtn").click();
+  await expect(page.locator("#settingsModal")).toBeHidden();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("neon-tetris-bgm-volume"))).toBe("0.35");
 
   await page.keyboard.press("Space");
   await expect(page.locator("#dropStreakFx")).toContainText("DROP ×1");

@@ -14,7 +14,7 @@
         <p class="eyebrow">ARCADE // 01</p>
         <h1>NEON TETRIS</h1>
       </div>
-      <div class="top-actions"><div id="playerChip" class="player-chip" aria-label="현재 플레이어"><span>PLAYER</span><strong id="playerName">...</strong></div><button id="rankBtn" class="icon-btn" type="button" aria-label="로컬 랭킹 보기">🏆</button><button id="soundBtn" class="icon-btn" type="button" aria-label="사운드 켜기">🔇</button><button id="pauseBtn" class="icon-btn" type="button" aria-label="일시정지">Ⅱ</button></div>
+      <div class="top-actions"><div id="playerChip" class="player-chip" aria-label="현재 플레이어"><span>PLAYER</span><strong id="playerName">...</strong></div><button id="rankBtn" class="icon-btn" type="button" aria-label="로컬 랭킹 보기">🏆</button><button id="settingsBtn" class="icon-btn" type="button" aria-label="사운드 설정 열기">⚙</button><button id="soundBtn" class="icon-btn" type="button" aria-label="사운드 켜기">🔇</button><button id="pauseBtn" class="icon-btn" type="button" aria-label="일시정지">Ⅱ</button></div>
     </header>
 
     <section class="game-shell">
@@ -129,6 +129,46 @@
       <div class="rank-heading"><div><p class="modal-kicker">LOCAL SCOREBOARD</p><h2 id="rankTitle">RANKING</h2></div><button id="closeRankBtn" class="icon-btn" type="button" aria-label="랭킹 닫기">✕</button></div>
       <ol id="rankList" class="rank-list"></ol>
       <p class="modal-copy">현재는 이 기기에 저장되는 로컬 랭킹입니다.</p>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="modal-layer hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-card settings-card">
+      <div class="rank-heading">
+        <div><p class="modal-kicker">AUDIO CONTROL</p><h2 id="settingsTitle">SOUND SETTINGS</h2></div>
+        <button id="closeSettingsBtn" class="icon-btn" type="button" aria-label="설정 닫기">✕</button>
+      </div>
+      <label class="sound-master-row" for="soundEnabledToggle">
+        <span><b>MASTER SOUND</b><small>전체 사운드 ON / OFF</small></span>
+        <input id="soundEnabledToggle" type="checkbox" role="switch" aria-label="전체 사운드 켜기" />
+      </label>
+      <div class="dial-grid">
+        <div class="dial-control">
+          <span>BGM</span>
+          <div class="dial-shell">
+            <input id="bgmVolumeDial" class="audio-dial" type="range" min="0" max="100" value="100" aria-label="배경음악 크기" />
+            <strong id="bgmVolumeValue">100%</strong>
+          </div>
+          <button id="testBgmBtn" class="test-sound-btn" type="button">TEST</button>
+        </div>
+        <div class="dial-control">
+          <span>GAME SFX</span>
+          <div class="dial-shell">
+            <input id="sfxVolumeDial" class="audio-dial" type="range" min="0" max="100" value="100" aria-label="게임 효과음 크기" />
+            <strong id="sfxVolumeValue">100%</strong>
+          </div>
+          <button id="testSfxBtn" class="test-sound-btn" type="button">TEST</button>
+        </div>
+        <div class="dial-control">
+          <span>LINE ALERT</span>
+          <div class="dial-shell">
+            <input id="lineVolumeDial" class="audio-dial" type="range" min="0" max="100" value="100" aria-label="줄 삭제 알림음 크기" />
+            <strong id="lineVolumeValue">100%</strong>
+          </div>
+          <button id="testLineBtn" class="test-sound-btn" type="button">TEST</button>
+        </div>
+      </div>
+      <p class="settings-copy">LINE ALERT는 줄 삭제 효과음과 영어 음성 알림의 크기를 함께 조절합니다.</p>
     </div>
   </div>
 

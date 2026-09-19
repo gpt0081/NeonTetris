@@ -190,3 +190,18 @@ test("ghost rival combo is gray", () => {
   assert.match(css, /\.rival-combo-fx\s*\{/);
   assert.match(css, /color:\s*#8f949d/);
 });
+
+
+test("gear audio settings provide persistent dial controls and tests", () => {
+  for (const id of ["settingsBtn","settingsModal","closeSettingsBtn","soundEnabledToggle","bgmVolumeDial","sfxVolumeDial","lineVolumeDial","testBgmBtn","testSfxBtn","testLineBtn"]) {
+    assert.match(html, new RegExp(`id=["']${id}["']`), `missing #${id}`);
+  }
+  for (const key of ["neon-tetris-bgm-volume","neon-tetris-sfx-volume","neon-tetris-line-volume"]) assert.ok(js.includes(key));
+  for (const symbol of ["showSettingsModal","hideSettingsModal","applyAudioMix","saveAudioLevel","syncAudioSettingsUI"]) {
+    assert.match(js, new RegExp(`function\\s+${symbol}\\b`));
+  }
+  assert.match(js, /lineClearGain/);
+  assert.match(js, /utterance\.volume\s*=\s*Math\.max/);
+  assert.match(css, /\.audio-dial/);
+  assert.match(css, /conic-gradient/);
+});
