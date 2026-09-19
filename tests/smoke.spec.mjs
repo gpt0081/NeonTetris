@@ -26,6 +26,7 @@ test("mobile game shell keeps protected controls, FEVER and ghost rival without 
 
   await page.goto("/");
   await expect(page.locator("#homeScreen")).toBeVisible();
+  await expect.poll(() => page.locator("body").evaluate(el => getComputedStyle(el).userSelect)).toBe("none");
   await expect(page.locator("#playerGate")).toBeHidden();
   await expect(page.locator("#homeStartBtn")).toBeVisible();
   await expect(page.locator("#homeSettingsBtn")).toBeVisible();
@@ -33,6 +34,7 @@ test("mobile game shell keeps protected controls, FEVER and ghost rival without 
   await page.locator("#homeStartBtn").click();
   await expect(page.locator("#homeScreen")).toBeHidden();
   await expect(page.locator("#playerGate")).toBeVisible();
+  await expect.poll(() => page.locator("#nicknameInput").evaluate(el => getComputedStyle(el).userSelect)).toBe("text");
   await page.locator("#nicknameInput").fill("CI-PLAYER");
   await expect(page.locator("#rivalSelect option")).toHaveCount(2);
   await page.locator("#rivalSelect").selectOption("0");

@@ -979,3 +979,20 @@ footer {
   .quick-menu-actions { gap: 7px; }
   .quick-menu-actions button { min-height: 80px; font-size: 20px; }
 }
+
+
+/* PREVENT ACCIDENTAL TEXT SELECTION DURING PLAY */
+body,
+.app,
+.modal-layer {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+input[type="text"],
+input[type="search"],
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
+}
