@@ -109,7 +109,34 @@
     </footer>
   </main>
 
-  <div id="playerGate" class="modal-layer" role="dialog" aria-modal="true" aria-labelledby="playerGateTitle">
+  <div id="homeScreen" class="modal-layer hidden" role="dialog" aria-modal="true" aria-labelledby="homeTitle">
+    <div class="modal-card home-card">
+      <p class="modal-kicker">NEON ARCADE</p>
+      <h2 id="homeTitle">READY?</h2>
+      <p class="modal-copy">플레이어를 선택하기 전에 메뉴에서 준비할 수 있습니다.</p>
+      <div class="home-actions">
+        <button id="homeStartBtn" class="home-primary" type="button">START</button>
+        <button id="homeSettingsBtn" type="button">SETTINGS</button>
+        <button id="homeRankBtn" type="button">RANKING</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="quickMenuModal" class="modal-layer hidden" role="dialog" aria-modal="true" aria-labelledby="quickMenuTitle">
+    <div class="modal-card quick-menu-card">
+      <div class="rank-heading">
+        <div><p class="modal-kicker">SYSTEM MENU</p><h2 id="quickMenuTitle">MENU</h2></div>
+        <button id="closeQuickMenuBtn" class="icon-btn" type="button" aria-label="메뉴 닫기">✕</button>
+      </div>
+      <div class="quick-menu-actions">
+        <button id="menuHomeBtn" type="button">⌂<span>HOME</span></button>
+        <button id="menuSettingsBtn" type="button">⚙<span>SETTINGS</span></button>
+        <button id="menuRankBtn" type="button">🏆<span>RANKING</span></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="playerGate" class="modal-layer hidden" role="dialog" aria-modal="true" aria-labelledby="playerGateTitle">
     <div class="modal-card player-card">
       <p class="modal-kicker">PLAYER IDENTIFICATION</p>
       <h2 id="playerGateTitle">닉네임을 입력하세요</h2>

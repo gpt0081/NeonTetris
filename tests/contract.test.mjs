@@ -205,3 +205,22 @@ test("gear audio settings provide persistent dial controls and tests", () => {
   assert.match(css, /\.audio-dial/);
   assert.match(css, /conic-gradient/);
 });
+
+
+test("home screen and in-game system menu remain", () => {
+  for (const id of ["homeScreen","homeStartBtn","homeSettingsBtn","homeRankBtn","quickMenuModal","menuHomeBtn","menuSettingsBtn","menuRankBtn","closeQuickMenuBtn"]) {
+    assert.match(html, new RegExp(`id=["']${id}["']`), `missing #${id}`);
+  }
+  for (const symbol of ["showHomeScreen","hideHomeScreen","showQuickMenu","hideQuickMenu","goHome"]) {
+    assert.match(js, new RegExp(`function\\s+${symbol}\\b`));
+  }
+  assert.match(js, /resetGame\(true\)/);
+  assert.match(css, /footer\s*\{[\s\S]*user-select:\s*none/);
+});
+
+test("audio mix is boosted above legacy levels", () => {
+  assert.match(js, /MASTER_OUTPUT\s*=\s*1/);
+  assert.match(js, /NORMAL_MUSIC_LEVEL\s*=\s*\.42/);
+  assert.match(js, /SFX_BASE_LEVEL\s*=\s*\.95/);
+  assert.match(js, /LINE_BASE_LEVEL\s*=\s*1/);
+});
