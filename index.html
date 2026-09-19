@@ -31,6 +31,11 @@
           <div><span>LINES</span><strong id="lines">0</strong></div>
           <div><span>LEVEL</span><strong id="level">1</strong></div>
         </div>
+        <div id="feverPanel" class="fever-panel" data-tier="0" aria-label="피버 게이지">
+          <div class="fever-head"><span>FEVER</span><strong id="feverLevel">COOL</strong></div>
+          <div id="feverMeter" class="fever-meter" role="progressbar" aria-label="피버 진행도" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="feverFill"></i></div>
+          <div class="fever-meta"><span id="feverMultiplier">×1.0</span><span id="feverNext">5 DROPS</span></div>
+        </div>
         <div class="mini">
           <span>HOLD</span>
           <canvas id="holdCanvas" width="120" height="120" aria-label="보관 블록"></canvas>
@@ -85,6 +90,7 @@
       <span>GHOST PIECE ENABLED</span>
       <span>LOCAL BEST SCORE</span>
       <span>LOCAL PLAYER RANKING</span>
+      <span>FEVER OVERDRIVE</span>
     </footer>
   </main>
 

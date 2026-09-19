@@ -100,3 +100,15 @@
 - Soft Drop, Hold, Pause, Restart, Sound, Ranking 등 그 외 게임 버튼/명령은 연속 카운트를 0으로 초기화한다.
 - 연속 Hard Drop 횟수가 증가할수록 블록 착지 시 전체 게임 화면의 흔들림과 보드 충격 강도가 증가한다.
 - 각 Hard Drop마다 현재 횟수를 화려한 DROP ×N 애니메이션으로 표시한다.
+
+
+## FEVER OVERDRIVE 계약
+
+- 연속 Hard Drop 5회에서 HEAT, 10회에서 RUSH, 20회에서 OVERDRIVE, 30회에서 FEVER MAX로 상승한다.
+- 점수 배율은 COOL ×1.0, HEAT ×1.2, RUSH ×1.5, OVERDRIVE ×2.0, FEVER MAX ×3.0이다.
+- FEVER 단계가 오를수록 BGM 템포와 자연 낙하 속도가 증가한다.
+- FEVER 단계가 오를수록 네온 강조와 현재 블록 잔상이 강해진다.
+- FEVER MAX에서는 연속 Hard Drop 5회 단위마다 FEVER BURST 보너스와 폭발 연출을 발생시킨다.
+- 기존 연속 드롭 초기화 규칙을 그대로 사용하며 초기화 시 FEVER도 COOL로 돌아간다.
+- 좌우 이동, 회전, Hard Drop은 FEVER 연속성을 유지한다.
+- 현재 게임의 최대 연속 Hard Drop과 최대 FEVER 단계는 게임오버 시 로컬 랭킹 기록에 저장한다.

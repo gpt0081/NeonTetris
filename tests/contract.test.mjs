@@ -72,7 +72,8 @@ test("audio and melody contract remains", () => {
   ]) {
     assert.match(js, new RegExp(`function\\s+${symbol}\\b`));
   }
-  assert.match(js, /const bpm = 118/);
+  assert.match(js, /bpm:\s*118/);
+  assert.match(js, /FEVER_LEVELS\[feverTier\]\.bpm/);
   assert.match(js, /const melody = \[/);
   assert.match(js, /neon-tetris-muted/);
   assert.match(js, /AudioContext|webkitAudioContext/);
@@ -102,4 +103,20 @@ test("hard drop streak escalation remains", () => {
   assert.match(js, /DROP ×/);
   assert.match(js, /streakSafeKeys/);
   assert.match(js, /screenBump\(dropPower \|\| 1\)/);
+});
+
+
+test("FEVER overdrive contract remains", () => {
+  for (const id of ["feverPanel","feverLevel","feverMeter","feverFill","feverMultiplier","feverNext"]) {
+    assert.match(html, new RegExp(`id=["']${id}["']`), `missing #${id}`);
+  }
+  assert.match(js, /const\s+FEVER_LEVELS\s*=\s*\[/);
+  for (const threshold of ["min: 5","min: 10","min: 20","min: 30"]) assert.ok(js.includes(threshold));
+  for (const multiplier of ["multiplier: 1.2","multiplier: 1.5","multiplier: 2","multiplier: 3"]) assert.ok(js.includes(multiplier));
+  assert.match(js, /function\s+updateFeverState\b/);
+  assert.match(js, /function\s+triggerFeverBurst\b/);
+  assert.match(js, /FEVER_LEVELS\[feverTier\]\.bpm/);
+  assert.match(js, /FEVER_LEVELS\[feverTier\]\.speed/);
+  assert.match(js, /maxDropStreak/);
+  assert.match(js, /maxFeverTier/);
 });

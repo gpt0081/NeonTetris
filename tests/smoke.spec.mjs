@@ -28,6 +28,14 @@ test("mobile game shell keeps protected controls, nickname gate and ranking with
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Space");
   await expect(page.locator("#dropStreakFx")).toContainText("DROP ×1");
+  await expect(page.locator("#feverLevel")).toHaveText("COOL");
+
+  for (let i = 0; i < 4; i++) {
+    await page.keyboard.press(i % 2 ? "ArrowLeft" : "ArrowRight");
+    await page.keyboard.press("Space");
+  }
+  await expect(page.locator("#feverLevel")).toHaveText("HEAT");
+  await expect(page.locator("#feverMultiplier")).toHaveText("×1.2");
 
   await page.locator("#rankBtn").click();
   await expect(page.locator("#rankModal")).toBeVisible();
