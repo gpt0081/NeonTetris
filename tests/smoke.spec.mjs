@@ -16,9 +16,9 @@ test("mobile game shell keeps protected controls, FEVER and ghost rival without 
         maxFeverTier: 1,
         duration: 2000,
         replay: [
-          { t: 0, score: 0, lines: 0, level: 1, fever: 0, streak: 0 },
-          { t: 1, score: 80, lines: 0, level: 1, fever: 0, streak: 2 },
-          { t: 2, score: 180, lines: 1, level: 1, fever: 1, streak: 5 }
+          { t: 0, score: 0, lines: 0, level: 1, fever: 0, streak: 0, board: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,48,120], active: [144,145,154,155] },
+          { t: 1, score: 80, lines: 0, level: 1, fever: 0, streak: 2, board: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,32,112,248], active: [134,144,145,154] },
+          { t: 2, score: 180, lines: 1, level: 1, fever: 1, streak: 5, board: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,16,48,112,255], active: [124,125,134,135] }
         ]
       }
     ]));
@@ -35,6 +35,7 @@ test("mobile game shell keeps protected controls, FEVER and ghost rival without 
   await expect(page.locator("#rivalPanel")).toBeVisible();
   await expect(page.locator("#rivalName")).toHaveText("GHOST-01");
   await expect(page.locator("#rivalDelta")).toContainText("EVEN");
+  await expect(page.locator("#rivalBoardCanvas")).toBeVisible();
 
   await expect(page.locator("#gameCanvas")).toBeVisible();
   await expect(page.locator("#nextCanvas")).toBeVisible();

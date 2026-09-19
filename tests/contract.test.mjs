@@ -135,3 +135,15 @@ test("ghost rival replay contract remains", () => {
   assert.match(js, /RIVAL DOWN|RIVAL WINS/);
   assert.match(js, /5000/);
 });
+
+
+test("ghost rival mini board contract remains", () => {
+  assert.match(html, /id=["']rivalBoardCanvas["']/);
+  for (const symbol of ["sanitizeBoardMasks","sanitizeActiveCells","packBoardMasks","packActiveCells","currentStackTopRow","drawRivalBoard"]) {
+    assert.match(js, new RegExp(`function\\s+${symbol}\\b`));
+  }
+  assert.match(js, /board:\s*packBoardMasks\(\)/);
+  assert.match(js, /active:\s*packActiveCells\(\)/);
+  assert.match(js, /LEGACY REPLAY/);
+  assert.match(css, /#rivalBoardCanvas/);
+});

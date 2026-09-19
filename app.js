@@ -71,6 +71,8 @@
   const myRivalScore = document.getElementById("myRivalScore");
   const ghostRivalScore = document.getElementById("ghostRivalScore");
   const rivalStats = document.getElementById("rivalStats");
+  const rivalBoardCanvas = document.getElementById("rivalBoardCanvas");
+  const rivalBoardCtx = rivalBoardCanvas.getContext("2d");
 
   let board;
   let current;
@@ -131,6 +133,19 @@
     return String(value || "").trim().replace(/\s+/g, " ").slice(0, 12);
   }
 
+  function sanitizeBoardMasks(value) {
+    if (!Array.isArray(value) || value.length !== ROWS) return [];
+    return value.map(mask => Math.max(0, Math.min(1023, Number(mask) | 0)));
+  }
+
+  function sanitizeActiveCells(value) {
+    if (!Array.isArray(value)) return [];
+    return value
+      .map(cell => Number(cell) | 0)
+      .filter(cell => cell >= 0 && cell < ROWS * COLS)
+      .slice(0, 4);
+  }
+
   function sanitizeReplay(value) {
     if (!Array.isArray(value)) return [];
     return value.slice(0, MAX_REPLAY_SECONDS + 1).map((snap, index) => ({
@@ -139,7 +154,9 @@
       lines: Math.max(0, Number(snap?.lines) || 0),
       level: Math.max(1, Number(snap?.level) || 1),
       fever: Math.max(0, Math.min(4, Number(snap?.fever) || 0)),
-      streak: Math.max(0, Number(snap?.streak) || 0)
+      streak: Math.max(0, Number(snap?.streak) || 0),
+      board: sanitizeBoardMasks(snap?.board),
+      active: sanitizeActiveCells(snap?.active)
     })).sort((a, b) => a.t - b.t);
   }
 
@@ -223,8 +240,31 @@
     renderRivalOptions();
   }
 
+  function packBoardMasks() {
+    return board.map(row => row.reduce((mask, cell, x) => cell ? mask | (1 << x) : mask, 0));
+  }
+
+  function packActiveCells() {
+    if (!current) return [];
+    const cells = [];
+    current.shape.forEach((row, y) => row.forEach((value, x) => {
+      if (!value) return;
+      const bx = current.x + x;
+      const by = current.y + y;
+      if (bx >= 0 && bx < COLS && by >= 0 && by < ROWS) cells.push(by * COLS + bx);
+    }));
+    return cells.slice(0, 4);
+  }
+
+  function currentStackTopRow() {
+    for (let y = 0; y < ROWS; y++) {
+      if (board[y].some(Boolean)) return y;
+    }
+    return ROWS;
+  }
+
   function snapshotState(t = Math.floor(replayClock / 1000)) {
-    return { t, score, lines, level, fever: feverTier, streak: dropStreak };
+    return { t, score, lines, level, fever: feverTier, streak: dropStreak, board: packBoardMasks(), active: packActiveCells() };
   }
 
   function beginReplayRun() {
@@ -257,6 +297,71 @@
     return chosen;
   }
 
+  function drawRivalBoard(snapshot) {
+    const context = rivalBoardCtx;
+    const w = rivalBoardCanvas.width;
+    const h = rivalBoardCanvas.height;
+    const cellW = w / COLS;
+    const cellH = h / ROWS;
+    context.clearRect(0, 0, w, h);
+    context.fillStyle = "#050913";
+    context.fillRect(0, 0, w, h);
+
+    context.strokeStyle = "rgba(165,178,255,.06)";
+    context.lineWidth = 1;
+    for (let x = 1; x < COLS; x++) {
+      context.beginPath();
+      context.moveTo(x * cellW + .5, 0);
+      context.lineTo(x * cellW + .5, h);
+      context.stroke();
+    }
+    for (let y = 1; y < ROWS; y++) {
+      context.beginPath();
+      context.moveTo(0, y * cellH + .5);
+      context.lineTo(w, y * cellH + .5);
+      context.stroke();
+    }
+
+    if (!snapshot || !snapshot.board?.length) {
+      context.fillStyle = "rgba(178,190,218,.42)";
+      context.font = "7px ui-monospace, monospace";
+      context.textAlign = "center";
+      context.fillText("LEGACY REPLAY", w / 2, h / 2 - 3);
+      context.fillText("NO BOARD DATA", w / 2, h / 2 + 8);
+      return;
+    }
+
+    snapshot.board.forEach((mask, y) => {
+      for (let x = 0; x < COLS; x++) {
+        if (!(mask & (1 << x))) continue;
+        const glow = Math.max(0, Math.min(1, snapshot.fever / 4));
+        context.fillStyle = `rgba(${132 + Math.round(glow * 28)},${124 + Math.round(glow * 30)},255,${.34 + glow * .16})`;
+        context.fillRect(x * cellW + 1, y * cellH + 1, Math.max(1, cellW - 2), Math.max(1, cellH - 2));
+      }
+    });
+
+    snapshot.active.forEach(cell => {
+      const x = cell % COLS;
+      const y = Math.floor(cell / COLS);
+      context.fillStyle = "#72ffe7";
+      context.shadowColor = "#72ffe7";
+      context.shadowBlur = 5;
+      context.fillRect(x * cellW + .7, y * cellH + .7, Math.max(1, cellW - 1.4), Math.max(1, cellH - 1.4));
+      context.shadowBlur = 0;
+    });
+
+    const myTop = currentStackTopRow();
+    const lineY = Math.min(h - .5, Math.max(.5, myTop * cellH));
+    context.strokeStyle = "rgba(255,229,106,.88)";
+    context.lineWidth = 1.4;
+    context.setLineDash([3, 2]);
+    context.beginPath();
+    context.moveTo(0, lineY);
+    context.lineTo(w, lineY);
+    context.stroke();
+    context.setLineDash([]);
+  }
+
   function flashRivalPressure(text, tier = 1) {
     dropStreakFx.textContent = text;
     dropStreakFx.dataset.tier = String(Math.max(1, Math.min(4, tier)));
@@ -274,6 +379,7 @@
   function updateRivalHUD(announce = false) {
     if (!selectedRival) {
       rivalPanel.classList.add("hidden");
+      rivalBoardCtx.clearRect(0, 0, rivalBoardCanvas.width, rivalBoardCanvas.height);
       return;
     }
     const rival = getRivalSnapshot();
@@ -290,6 +396,7 @@
     myRivalScore.textContent = score.toLocaleString();
     ghostRivalScore.textContent = rival.score.toLocaleString();
     rivalStats.textContent = `${rival.lines}L · F${rival.fever} · ×${rival.streak}`;
+    drawRivalBoard(rival);
 
     if (!announce) {
       rivalLastFever = rival.fever;
