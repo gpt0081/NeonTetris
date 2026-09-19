@@ -224,3 +224,18 @@ test("audio mix is boosted above legacy levels", () => {
   assert.match(js, /SFX_BASE_LEVEL\s*=\s*\.95/);
   assert.match(js, /LINE_BASE_LEVEL\s*=\s*1/);
 });
+
+
+test("audio dials support three turns and audible BGM test", () => {
+  for (const id of ["bgmVolumeDial","sfxVolumeDial","lineVolumeDial"]) {
+    assert.match(html, new RegExp(`id=["']${id}["'][^>]*max=["']300["']`));
+  }
+  assert.match(js, /MAX_AUDIO_LEVEL\s*=\s*3/);
+  assert.match(js, /function\s+attachRotaryDial\b/);
+  assert.match(js, /delta\s*\/\s*3\.6/);
+  assert.match(js, /function\s+playBgmTestTone\b/);
+  assert.match(js, /NORMAL_MUSIC_LEVEL\s*\*\s*bgmVolume/);
+  assert.match(js, /playBgmTestTone\(\)/);
+  assert.match(css, /--dial-rotation/);
+  assert.match(css, /--dial-color/);
+});

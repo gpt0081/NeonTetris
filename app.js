@@ -169,9 +169,10 @@
   const SFX_BASE_LEVEL = .95;
   const LINE_BASE_LEVEL = 1;
   let musicBaseLevel = NORMAL_MUSIC_LEVEL;
+  const MAX_AUDIO_LEVEL = 3;
   const readAudioLevel = (key, fallback = 1) => {
     const value = Number(localStorage.getItem(key));
-    return Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
+    return Number.isFinite(value) ? Math.max(0, Math.min(MAX_AUDIO_LEVEL, value)) : fallback;
   };
   let bgmVolume = readAudioLevel("neon-tetris-bgm-volume", 1);
   let sfxVolume = readAudioLevel("neon-tetris-sfx-volume", 1);
@@ -180,10 +181,52 @@
   bestEl.textContent = best.toLocaleString();
 
   function setDialVisual(input, output, value) {
-    const pct = Math.round(Math.max(0, Math.min(1, value)) * 100);
+    const pct = Math.round(Math.max(0, Math.min(MAX_AUDIO_LEVEL, value)) * 100);
+    const cycleProgress = pct === 0 ? 0 : (pct % 100 || 100);
+    const hue = Math.round((pct / 300) * 300);
+    const shell = input.closest(".dial-shell");
     input.value = String(pct);
-    input.style.setProperty("--dial", `${pct * .75}%`);
+    shell.style.setProperty("--dial-angle", `${cycleProgress * 3.6}deg`);
+    shell.style.setProperty("--dial-rotation", `${pct * 3.6}deg`);
+    shell.style.setProperty("--dial-color", `hsl(${hue} 95% 64%)`);
     output.textContent = `${pct}%`;
+  }
+
+  function attachRotaryDial(input) {
+    const shell = input.closest(".dial-shell");
+    let activePointer = null;
+    let lastAngle = 0;
+    let liveValue = Number(input.value) || 0;
+    const angleAt = (event) => {
+      const rect = shell.getBoundingClientRect();
+      return Math.atan2(event.clientY - (rect.top + rect.height / 2), event.clientX - (rect.left + rect.width / 2)) * 180 / Math.PI;
+    };
+    shell.addEventListener("pointerdown", (event) => {
+      activePointer = event.pointerId;
+      liveValue = Number(input.value) || 0;
+      lastAngle = angleAt(event);
+      shell.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    });
+    shell.addEventListener("pointermove", (event) => {
+      if (event.pointerId !== activePointer) return;
+      const angle = angleAt(event);
+      let delta = angle - lastAngle;
+      if (delta > 180) delta -= 360;
+      if (delta < -180) delta += 360;
+      liveValue = Math.max(0, Math.min(300, liveValue + delta / 3.6));
+      input.value = String(Math.round(liveValue));
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      lastAngle = angle;
+    });
+    const finish = (event) => {
+      if (event.pointerId !== activePointer) return;
+      activePointer = null;
+      try { shell.releasePointerCapture(event.pointerId); } catch (_) {}
+    };
+    shell.addEventListener("pointerup", finish);
+    shell.addEventListener("pointercancel", finish);
+    input.addEventListener("change", () => { liveValue = Number(input.value) || 0; });
   }
 
   function syncAudioSettingsUI() {
@@ -831,7 +874,7 @@
   }
 
   function saveAudioLevel(kind, value) {
-    const normalized = Math.max(0, Math.min(1, Number(value) || 0));
+    const normalized = Math.max(0, Math.min(MAX_AUDIO_LEVEL, Number(value) || 0));
     if (kind === "bgm") {
       bgmVolume = normalized;
       localStorage.setItem("neon-tetris-bgm-volume", String(normalized));
@@ -843,6 +886,18 @@
       localStorage.setItem("neon-tetris-line-volume", String(normalized));
     }
     applyAudioMix();
+  }
+
+  function playBgmTestTone() {
+    if (!audioCtx || !masterGain || soundMuted) return;
+    const testGain = audioCtx.createGain();
+    const now = audioCtx.currentTime;
+    testGain.gain.setValueAtTime(Math.max(.0001, NORMAL_MUSIC_LEVEL * bgmVolume), now);
+    testGain.connect(masterGain);
+    tone(440, .52, "sine", .22, now + .015, 442, testGain);
+    window.setTimeout(() => {
+      try { testGain.disconnect(); } catch (_) {}
+    }, 700);
   }
 
   function setMuted(value) {
@@ -1818,10 +1873,10 @@
   bgmVolumeDial.addEventListener("input", () => saveAudioLevel("bgm", Number(bgmVolumeDial.value) / 100));
   sfxVolumeDial.addEventListener("input", () => saveAudioLevel("sfx", Number(sfxVolumeDial.value) / 100));
   lineVolumeDial.addEventListener("input", () => saveAudioLevel("line", Number(lineVolumeDial.value) / 100));
+  [bgmVolumeDial, sfxVolumeDial, lineVolumeDial].forEach(attachRotaryDial);
   testBgmBtn.addEventListener("click", async () => {
     if (!await ensureAudio(false) || soundMuted) return;
-    const t = audioCtx.currentTime + .015;
-    [261.63, 329.63, 392].forEach((freq, i) => tone(freq, .32, i === 1 ? "triangle" : "sine", .045, t + i * .025, freq * 1.004, musicGain));
+    playBgmTestTone();
   });
   testSfxBtn.addEventListener("click", async () => {
     if (!await ensureAudio(false) || soundMuted) return;
