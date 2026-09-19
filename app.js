@@ -73,6 +73,8 @@
   const rivalStats = document.getElementById("rivalStats");
   const rivalBoardCanvas = document.getElementById("rivalBoardCanvas");
   const rivalBoardCtx = rivalBoardCanvas.getContext("2d");
+  const rivalBoardName = document.getElementById("rivalBoardName");
+  const rivalLineFx = document.getElementById("rivalLineFx");
 
   let board;
   let current;
@@ -108,6 +110,8 @@
   let selectedRival = null;
   let rivalLastFever = 0;
   let rivalLastScoreMilestone = 0;
+  let rivalLastLines = 0;
+  let rivalLineFxTimer = null;
   const MAX_REPLAY_SECONDS = 600;
   const FEVER_LEVELS = [
     { min: 0,  label: "COOL",      multiplier: 1,   bpm: 118, speed: 1 },
@@ -273,6 +277,7 @@
     replayTimeline = [snapshotState(0)];
     rivalLastFever = 0;
     rivalLastScoreMilestone = 0;
+    rivalLastLines = 0;
     updateRivalHUD(false);
   }
 
@@ -362,6 +367,17 @@
     context.setLineDash([]);
   }
 
+  function showRivalLineClear(count) {
+    const tier = Math.min(4, Math.max(1, count));
+    const labels = ["", "LINE CLEAR!", "DOUBLE COMBO!", "TRIPLE COMBO!", "QUATTRO!"];
+    rivalLineFx.textContent = labels[tier];
+    rivalLineFx.classList.remove("active");
+    void rivalLineFx.offsetWidth;
+    rivalLineFx.classList.add("active");
+    clearTimeout(rivalLineFxTimer);
+    rivalLineFxTimer = window.setTimeout(() => rivalLineFx.classList.remove("active"), 820);
+  }
+
   function flashRivalPressure(text, tier = 1) {
     dropStreakFx.textContent = text;
     dropStreakFx.dataset.tier = String(Math.max(1, Math.min(4, tier)));
@@ -379,6 +395,8 @@
   function updateRivalHUD(announce = false) {
     if (!selectedRival) {
       rivalPanel.classList.add("hidden");
+      rivalBoardName.textContent = "NONE";
+      rivalLineFx.classList.remove("active");
       rivalBoardCtx.clearRect(0, 0, rivalBoardCanvas.width, rivalBoardCanvas.height);
       return;
     }
@@ -386,6 +404,7 @@
     if (!rival) return;
     rivalPanel.classList.remove("hidden");
     rivalNameEl.textContent = selectedRival.name;
+    rivalBoardName.textContent = selectedRival.name;
     const delta = score - rival.score;
     rivalDeltaEl.classList.toggle("ahead", delta > 0);
     rivalDeltaEl.classList.toggle("behind", delta < 0);
@@ -401,7 +420,12 @@
     if (!announce) {
       rivalLastFever = rival.fever;
       rivalLastScoreMilestone = Math.floor(rival.score / 5000);
+      rivalLastLines = rival.lines;
       return;
+    }
+    if (rival.lines > rivalLastLines) {
+      showRivalLineClear(rival.lines - rivalLastLines);
+      rivalLastLines = rival.lines;
     }
     if (rival.fever > rivalLastFever) {
       rivalLastFever = rival.fever;
@@ -1479,6 +1503,9 @@
     replayTimeline = [];
     rivalLastFever = 0;
     rivalLastScoreMilestone = 0;
+    rivalLastLines = 0;
+    clearTimeout(rivalLineFxTimer);
+    rivalLineFx.classList.remove("active");
     fxBanner.classList.remove("active");
     dropStreakFx.classList.remove("active");
     boardWrap.classList.remove("slam", "mega-slam", "line-burst");

@@ -674,3 +674,49 @@ footer span::before { content: "•"; margin-right: 7px; color: var(--accent); }
   .rival-board-wrap { margin-top: 6px; padding: 3px; border-radius: 7px; }
   .rival-board-caption { display: none; }
 }
+
+
+/* GHOST RIVAL LABELS */
+.rival-board-name {
+  display: block;
+  max-width: 100%;
+  margin: 0 0 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  color: rgba(214,220,235,.68);
+  font-size: 8px;
+  font-weight: 760;
+  letter-spacing: .08em;
+}
+.rival-line-fx {
+  position: absolute;
+  left: 50%;
+  top: 52%;
+  z-index: 3;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(.72);
+  pointer-events: none;
+  white-space: nowrap;
+  color: #9aa0aa;
+  font-size: 10px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -.04em;
+  text-shadow: 0 0 7px rgba(180,185,195,.35);
+  mix-blend-mode: screen;
+}
+.rival-line-fx.active {
+  animation: rival-line-gray .78s cubic-bezier(.12,.86,.22,1);
+}
+@keyframes rival-line-gray {
+  0% { opacity: 0; transform: translate(-50%, -35%) scale(.55); filter: blur(3px); }
+  20% { opacity: .9; transform: translate(-50%, -50%) scale(1.08); filter: blur(0); }
+  48% { opacity: .82; transform: translate(-50%, -50%) scale(.96); }
+  100% { opacity: 0; transform: translate(-50%, -68%) scale(1.02); }
+}
+@media (max-width: 720px) {
+  .rival-board-name { margin-bottom: 3px; font-size: 6px; }
+  .rival-line-fx { font-size: 7px; }
+}

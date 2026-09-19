@@ -36,6 +36,7 @@ test("mobile game shell keeps protected controls, FEVER and ghost rival without 
   await expect(page.locator("#rivalName")).toHaveText("GHOST-01");
   await expect(page.locator("#rivalDelta")).toContainText("EVEN");
   await expect(page.locator("#rivalBoardCanvas")).toBeVisible();
+  await expect(page.locator("#rivalBoardName")).toHaveText("GHOST-01");
 
   await expect(page.locator("#gameCanvas")).toBeVisible();
   await expect(page.locator("#nextCanvas")).toBeVisible();
@@ -62,8 +63,9 @@ test("mobile game shell keeps protected controls, FEVER and ghost rival without 
   await expect(page.locator("#feverLevel")).toHaveText("HEAT");
   await expect(page.locator("#feverMultiplier")).toHaveText("×1.2");
 
-  await page.waitForTimeout(1100);
+  await page.waitForTimeout(2100);
   await expect(page.locator("#ghostRivalScore")).not.toHaveText("0");
+  await expect(page.locator("#rivalLineFx")).toContainText("LINE CLEAR!");
 
   await page.locator("#rankBtn").click();
   await expect(page.locator("#rankModal")).toBeVisible();
