@@ -70,6 +70,12 @@ test("mobile game shell keeps protected controls, FEVER and ghost rival without 
   await page.locator("#closeRankBtn").click();
   await expect(page.locator("#rankModal")).toBeHidden();
 
+  await page.locator("#restartBtn").click();
+  await expect(page.locator("#playerGate")).toBeVisible();
+  await expect(page.locator("#nicknameInput")).toHaveValue("CI-PLAYER");
+  await expect(page.locator("#playerName")).toHaveText("...");
+  await expect(page.locator("#rivalPanel")).toBeHidden();
+
   fs.mkdirSync("test-results", { recursive: true });
   await page.screenshot({ path: "test-results/mobile-current.png", fullPage: true });
 
