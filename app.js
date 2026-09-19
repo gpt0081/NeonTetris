@@ -75,6 +75,7 @@
   const rivalBoardCtx = rivalBoardCanvas.getContext("2d");
   const rivalBoardName = document.getElementById("rivalBoardName");
   const rivalLineFx = document.getElementById("rivalLineFx");
+  const rivalComboFx = document.getElementById("rivalComboFx");
 
   let board;
   let current;
@@ -97,6 +98,8 @@
   let fxTimer = null;
   let dropStreak = 0;
   let dropStreakTimer = null;
+  let dropStreakExpiryTimer = null;
+  const DROP_STREAK_TIMEOUT_MS = 10000;
   let playerName = "";
   let playerReady = false;
   let rankWasPaused = false;
@@ -111,7 +114,9 @@
   let rivalLastFever = 0;
   let rivalLastScoreMilestone = 0;
   let rivalLastLines = 0;
+  let rivalLastStreak = 0;
   let rivalLineFxTimer = null;
+  let rivalComboFxTimer = null;
   const MAX_REPLAY_SECONDS = 600;
   const FEVER_LEVELS = [
     { min: 0,  label: "COOL",      multiplier: 1,   bpm: 118, speed: 1 },
@@ -278,6 +283,7 @@
     rivalLastFever = 0;
     rivalLastScoreMilestone = 0;
     rivalLastLines = 0;
+    rivalLastStreak = 0;
     updateRivalHUD(false);
   }
 
@@ -367,6 +373,16 @@
     context.setLineDash([]);
   }
 
+  function showRivalCombo(streak) {
+    if (streak <= 0) return;
+    rivalComboFx.textContent = `COMBO ×${streak}`;
+    rivalComboFx.classList.remove("active");
+    void rivalComboFx.offsetWidth;
+    rivalComboFx.classList.add("active");
+    clearTimeout(rivalComboFxTimer);
+    rivalComboFxTimer = window.setTimeout(() => rivalComboFx.classList.remove("active"), 740);
+  }
+
   function showRivalLineClear(count) {
     const tier = Math.min(4, Math.max(1, count));
     const labels = ["", "LINE CLEAR!", "DOUBLE COMBO!", "TRIPLE COMBO!", "QUATTRO!"];
@@ -397,6 +413,7 @@
       rivalPanel.classList.add("hidden");
       rivalBoardName.textContent = "NONE";
       rivalLineFx.classList.remove("active");
+      rivalComboFx.classList.remove("active");
       rivalBoardCtx.clearRect(0, 0, rivalBoardCanvas.width, rivalBoardCanvas.height);
       return;
     }
@@ -421,12 +438,17 @@
       rivalLastFever = rival.fever;
       rivalLastScoreMilestone = Math.floor(rival.score / 5000);
       rivalLastLines = rival.lines;
+      rivalLastStreak = rival.streak;
       return;
     }
     if (rival.lines > rivalLastLines) {
       showRivalLineClear(rival.lines - rivalLastLines);
       rivalLastLines = rival.lines;
     }
+    if (rival.streak > rivalLastStreak) {
+      showRivalCombo(rival.streak);
+    }
+    rivalLastStreak = rival.streak;
     if (rival.fever > rivalLastFever) {
       rivalLastFever = rival.fever;
       flashRivalPressure(`RIVAL ${FEVER_LEVELS[rival.fever]?.label || "FEVER"}!`, rival.fever);
@@ -566,8 +588,17 @@
   function resetDropStreak() {
     dropStreak = 0;
     clearTimeout(dropStreakTimer);
+    clearTimeout(dropStreakExpiryTimer);
+    dropStreakExpiryTimer = null;
     dropStreakFx.classList.remove("active");
     updateFeverState(false);
+  }
+
+  function armDropStreakExpiry() {
+    clearTimeout(dropStreakExpiryTimer);
+    dropStreakExpiryTimer = window.setTimeout(() => {
+      if (dropStreak > 0) resetDropStreak();
+    }, DROP_STREAK_TIMEOUT_MS);
   }
 
   function registerHardDrop() {
@@ -585,6 +616,7 @@
     }
     clearTimeout(dropStreakTimer);
     dropStreakTimer = window.setTimeout(() => dropStreakFx.classList.remove("active"), 760);
+    armDropStreakExpiry();
     return dropStreak;
   }
 
@@ -1493,6 +1525,8 @@
     flash = 0;
     clearTimeout(fxTimer);
     clearTimeout(dropStreakTimer);
+    clearTimeout(dropStreakExpiryTimer);
+    dropStreakExpiryTimer = null;
     dropStreak = 0;
     feverTier = 0;
     feverMultiplier = 1;
@@ -1504,8 +1538,11 @@
     rivalLastFever = 0;
     rivalLastScoreMilestone = 0;
     rivalLastLines = 0;
+    rivalLastStreak = 0;
     clearTimeout(rivalLineFxTimer);
+    clearTimeout(rivalComboFxTimer);
     rivalLineFx.classList.remove("active");
+    rivalComboFx.classList.remove("active");
     fxBanner.classList.remove("active");
     dropStreakFx.classList.remove("active");
     boardWrap.classList.remove("slam", "mega-slam", "line-burst");
