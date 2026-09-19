@@ -173,3 +173,19 @@
 - BGM TEST는 배경음악 채널로 짧은 화음을, GAME SFX TEST는 게임 효과음 채널로 효과음을, LINE ALERT TEST는 줄 삭제 효과음과 영어 음성을 즉시 재생한다.
 - LINE ALERT 볼륨은 줄 삭제 신스 효과음과 SpeechSynthesis 음성 알림에 함께 적용한다.
 - 설정창을 여는 동안 게임은 일시정지되고, 닫을 때 원래 일시정지 상태를 복원한다.
+
+
+## HOME & SYSTEM MENU 계약
+
+- 최초 접속 시 닉네임 입력창을 바로 띄우지 않고 START, SETTINGS, RANKING 버튼이 있는 시작 대기화면을 표시한다.
+- START를 누르면 기존 닉네임·GHOST RIVAL 선택 화면으로 이동한다.
+- 시작 대기화면의 SETTINGS와 RANKING은 게임을 시작하지 않고도 접근 가능해야 한다.
+- 게임 중 톱니바퀴 버튼은 즉시 사운드 설정을 열지 않고 HOME, SETTINGS, RANKING 세 선택지가 있는 시스템 메뉴를 표시한다.
+- HOME은 현재 플레이를 종료하고 시작 대기화면으로 돌아간다.
+- SETTINGS 또는 RANKING을 닫으면 메뉴를 열기 전 게임의 실행/일시정지 상태를 적절히 복원한다.
+- 하단 기능 설명 footer 텍스트는 드래그하거나 길게 눌러 선택할 수 없어야 한다.
+
+## LOUDER AUDIO MIX 계약
+
+- 기존보다 기본 출력이 명확히 커지도록 Master 출력 1.0, BGM 기준 0.42, GAME SFX 기준 0.95, LINE ALERT 기준 1.0을 사용한다.
+- 사용자가 설정한 BGM, GAME SFX, LINE ALERT 0~100% 다이얼 비율은 증폭된 기준값에 곱해 적용한다.
