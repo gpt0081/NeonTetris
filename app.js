@@ -628,11 +628,12 @@
     lastRivalRenderSecond = -1;
     markRenderDirty();
     if (!paused && !gameOver && playerReady) startFrameLoop();
-    else drawBoard(0);
+    else if (board && current) drawBoard(0);
   }
 
   function showHomeScreen() {
     paused = true;
+    stopFrameLoop();
     hideOverlay();
     playerGate.classList.add("hidden");
     quickMenuModal.classList.add("hidden");
@@ -649,6 +650,7 @@
   function showQuickMenu() {
     quickMenuWasPaused = paused;
     paused = true;
+    stopFrameLoop();
     setMusicLevel(PAUSED_MUSIC_LEVEL);
     quickMenuModal.classList.remove("hidden");
   }
@@ -659,11 +661,14 @@
       paused = false;
       setMusicLevel(NORMAL_MUSIC_LEVEL);
       lastTime = performance.now();
+      markRenderDirty();
+      startFrameLoop();
     }
   }
 
   function showPlayerGate() {
     paused = true;
+    stopFrameLoop();
     homeScreen.classList.add("hidden");
     playerGate.classList.remove("hidden");
     nicknameInput.value = localStorage.getItem("neon-tetris-last-player") || "";
@@ -703,6 +708,7 @@
     settingsResumeAfterClose = resumeAfterClose;
     if (!gameOver) {
       paused = true;
+      stopFrameLoop();
       setMusicLevel(PAUSED_MUSIC_LEVEL);
     }
     syncAudioSettingsUI();
@@ -725,6 +731,7 @@
     rankResumeAfterClose = resumeAfterClose;
     if (!gameOver) {
       paused = true;
+      stopFrameLoop();
       setMusicLevel(PAUSED_MUSIC_LEVEL);
     }
     rankModal.classList.remove("hidden");
