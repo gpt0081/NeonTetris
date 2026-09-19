@@ -120,3 +120,18 @@ test("FEVER overdrive contract remains", () => {
   assert.match(js, /maxDropStreak/);
   assert.match(js, /maxFeverTier/);
 });
+
+
+test("ghost rival replay contract remains", () => {
+  for (const id of ["rivalSelect","rivalPanel","rivalName","rivalDelta","myRivalBar","ghostRivalBar","rivalStats"]) {
+    assert.match(html, new RegExp(`id=["']${id}["']`), `missing #${id}`);
+  }
+  for (const symbol of ["sanitizeReplay","renderRivalOptions","beginReplayRun","captureReplaySnapshot","getRivalSnapshot","updateRivalHUD"]) {
+    assert.match(js, new RegExp(`function\\s+${symbol}\\b`));
+  }
+  assert.match(js, /MAX_REPLAY_SECONDS\s*=\s*600/);
+  assert.match(js, /replayTimeline/);
+  assert.match(js, /selectedRival/);
+  assert.match(js, /RIVAL DOWN|RIVAL WINS/);
+  assert.match(js, /5000/);
+});
