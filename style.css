@@ -916,3 +916,57 @@ footer span::before { content: "•"; margin-right: 7px; color: var(--accent); }
   .audio-dial::-webkit-slider-thumb { margin-top: 27px; }
   .dial-shell strong { font-size: 11px; }
 }
+
+
+/* HOME + SYSTEM MENU */
+.home-card { width: min(430px, 100%); text-align: center; }
+.home-card h2 { font-size: clamp(42px, 12vw, 68px); letter-spacing: -.06em; }
+.home-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+.home-actions button,
+.quick-menu-actions button {
+  min-height: 50px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255,255,255,.035);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.home-actions .home-primary {
+  border-color: rgba(142,255,223,.36);
+  background: linear-gradient(180deg, rgba(142,255,223,.13), rgba(142,255,223,.045));
+  box-shadow: 0 0 28px rgba(142,255,223,.08);
+}
+.quick-menu-card { width: min(390px, 100%); }
+.quick-menu-actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 18px;
+}
+.quick-menu-actions button {
+  min-height: 92px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  font-size: 22px;
+}
+.quick-menu-actions button span {
+  font-size: 8px;
+  letter-spacing: .13em;
+  color: #aab4c5;
+}
+footer {
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+@media (max-width: 430px) {
+  .quick-menu-actions { gap: 7px; }
+  .quick-menu-actions button { min-height: 80px; font-size: 20px; }
+}
