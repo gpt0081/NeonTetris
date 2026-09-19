@@ -239,3 +239,11 @@ test("audio dials support three turns and audible BGM test", () => {
   assert.match(css, /--dial-rotation/);
   assert.match(css, /--dial-color/);
 });
+
+
+test("game UI text cannot be selected", () => {
+  assert.match(css, /body,[\s\S]*\.app,[\s\S]*\.modal-layer\s*\{[\s\S]*user-select:\s*none/);
+  assert.match(css, /-webkit-user-select:\s*none/);
+  assert.match(css, /-webkit-touch-callout:\s*none/);
+  assert.match(css, /input\[type=["']text["']\][\s\S]*user-select:\s*text/);
+});
