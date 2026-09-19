@@ -1439,6 +1439,17 @@
     showOverlay(rivalResult + rivalSuffix, score.toLocaleString() + "점", "다시 시작");
   }
 
+  function restartWithPlayerSetup() {
+    playerReady = false;
+    playerName = "";
+    selectedRival = null;
+    playerNameEl.textContent = "...";
+    rivalSelect.value = "";
+    rivalPanel.classList.add("hidden");
+    rivalBoardCtx.clearRect(0, 0, rivalBoardCanvas.width, rivalBoardCanvas.height);
+    resetGame();
+  }
+
   function resetGame() {
     board = makeBoard();
     bag = [];
@@ -1517,7 +1528,7 @@
       case "KeyC": holdPiece(); break;
       case "KeyP":
       case "Escape": togglePause(); break;
-      case "KeyR": resetGame(); break;
+      case "KeyR": restartWithPlayerSetup(); break;
     }
   }, { passive: false });
 
@@ -1572,11 +1583,11 @@
   });
   restartBtn.addEventListener("click", () => {
     resetDropStreak();
-    resetGame();
+    restartWithPlayerSetup();
   });
   overlayBtn.addEventListener("click", () => {
     resetDropStreak();
-    if (gameOver) resetGame();
+    if (gameOver) restartWithPlayerSetup();
     else togglePause(false);
   });
   rankBtn.addEventListener("click", () => {

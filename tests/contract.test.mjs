@@ -147,3 +147,14 @@ test("ghost rival mini board contract remains", () => {
   assert.match(js, /LEGACY REPLAY/);
   assert.match(css, /#rivalBoardCanvas/);
 });
+
+
+test("restart always returns to player setup", () => {
+  assert.match(js, /function\s+restartWithPlayerSetup\b/);
+  assert.match(js, /playerReady\s*=\s*false/);
+  assert.match(js, /selectedRival\s*=\s*null/);
+  assert.match(js, /playerNameEl\.textContent\s*=\s*["']\.\.\.["']/);
+  assert.match(js, /case ["']KeyR["']:\s*restartWithPlayerSetup\(\)/);
+  assert.match(js, /restartBtn\.addEventListener[\s\S]*restartWithPlayerSetup\(\)/);
+  assert.match(js, /if \(gameOver\) restartWithPlayerSetup\(\)/);
+});
