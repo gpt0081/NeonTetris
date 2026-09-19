@@ -158,3 +158,16 @@ test("restart always returns to player setup", () => {
   assert.match(js, /restartBtn\.addEventListener[\s\S]*restartWithPlayerSetup\(\)/);
   assert.match(js, /if \(gameOver\) restartWithPlayerSetup\(\)/);
 });
+
+
+test("ghost rival line clears stay gray and board name stays compact", () => {
+  for (const id of ["rivalBoardName","rivalLineFx"]) {
+    assert.match(html, new RegExp(`id=["']${id}["']`), `missing #${id}`);
+  }
+  assert.match(js, /function\s+showRivalLineClear\b/);
+  for (const phrase of ["LINE CLEAR!","DOUBLE COMBO!","TRIPLE COMBO!","QUATTRO!"]) assert.ok(js.includes(phrase));
+  assert.match(js, /rival\.lines > rivalLastLines/);
+  assert.match(css, /\.rival-line-fx\s*\{/);
+  assert.match(css, /color:\s*#9aa0aa/);
+  assert.match(css, /\.rival-board-name\s*\{/);
+});
