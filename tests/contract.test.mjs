@@ -72,7 +72,8 @@ test("audio and melody contract remains", () => {
   ]) {
     assert.match(js, new RegExp(`function\\s+${symbol}\\b`));
   }
-  assert.match(js, /const bpm = 118/);
+  assert.match(js, /bpm:\s*118/);
+  assert.match(js, /FEVER_LEVELS\[feverTier\]\.bpm/);
   assert.match(js, /const melody = \[/);
   assert.match(js, /neon-tetris-muted/);
   assert.match(js, /AudioContext|webkitAudioContext/);
