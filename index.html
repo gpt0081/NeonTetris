@@ -60,6 +60,13 @@
           <span>NEXT</span>
           <canvas id="nextCanvas" width="120" height="120" aria-label="다음 블록"></canvas>
         </div>
+        <div id="rivalPanel" class="rival-panel hidden" aria-label="고스트 라이벌 진행 상황">
+          <div class="rival-head"><span>GHOST RIVAL</span><strong id="rivalName">NONE</strong></div>
+          <strong id="rivalDelta" class="rival-delta">EVEN</strong>
+          <div class="rival-lane"><span>YOU</span><div class="rival-track"><i id="myRivalBar"></i></div><b id="myRivalScore">0</b></div>
+          <div class="rival-lane ghost"><span>GHOST</span><div class="rival-track"><i id="ghostRivalBar"></i></div><b id="ghostRivalScore">0</b></div>
+          <p id="rivalStats" class="rival-stats">0L · F0 · ×0</p>
+        </div>
         <div class="keys">
           <span>KEYS</span>
           <p>← → 이동</p>
@@ -91,6 +98,7 @@
       <span>LOCAL BEST SCORE</span>
       <span>LOCAL PLAYER RANKING</span>
       <span>FEVER OVERDRIVE</span>
+      <span>GHOST RIVAL REPLAY</span>
     </footer>
   </main>
 
@@ -101,8 +109,10 @@
       <p class="modal-copy">이 기기의 로컬 랭킹에 기록됩니다.</p>
       <form id="nicknameForm">
         <input id="nicknameInput" type="text" maxlength="12" autocomplete="nickname" placeholder="NICKNAME" aria-label="닉네임" required />
+        <label class="rival-picker"><span>GHOST RIVAL</span><select id="rivalSelect" aria-label="고스트 라이벌 선택"><option value="">NO RIVAL</option></select></label>
         <button id="startGameBtn" type="submit">START GAME</button>
       </form>
+      <p id="rivalHint" class="rival-hint">기록된 플레이를 선택하면 같은 시간축으로 추격전이 시작됩니다.</p>
       <p id="nicknameError" class="field-error" aria-live="polite"></p>
     </div>
   </div>
